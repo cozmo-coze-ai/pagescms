@@ -20,8 +20,8 @@ rest of that pipeline.
 | Piece | Where |
 |---|---|
 | App code | this repo, fork of upstream pages-cms, pushed to `github.com/cozmo-coze-ai/pagescms` |
-| Hosting | Vercel project **`pagescms`**, custom domain `cms.coze.care` |
-| Database | Neon Postgres (Vercel Storage integration on the `pagescms` project) |
+| Hosting | Vercel project **`pagescms`**, custom domain `cms.coze.care`, function region `icn1` (Seoul) |
+| Database | Neon Postgres, `ap-southeast-1` (Singapore) — resource `pagescms-sin`, env vars prefixed `SG_` (Vercel Storage integration on the `pagescms` project). A prior `us-east-1` Neon resource (unprefixed vars) was migrated away from due to cross-Pacific query latency and is slated for removal once the new one is confirmed stable in production. |
 | GitHub App | **`coze-cms`** (App ID in Vercel env `GITHUB_APP_ID`), installed **only** on `cozmo-coze-ai/coze_cms` |
 | Email | Resend (`RESEND_API_KEY`), sending from `onboarding@resend.dev` (shared/unverified sender — mail sometimes lands in spam; verifying the `coze.care` domain in Resend would fix this but hasn't been done) |
 
@@ -61,18 +61,24 @@ or edit content.
      and isn't accepted inside `default_permissions` (which is
      repo/org-level only) — it must be added manually after creation
      (Settings → Account permissions → Email addresses → Read-only).
-- **`DATABASE_URL` must stay the Neon non-pooled connection string**
-  (no `-pooler` in the hostname) — the pooled one caused the `postbuild`
-  migration step (`npm run db:migrate`, via drizzle-kit) to fail during
-  Vercel builds. That's fine for the build-time migration, but this var
-  was previously also used for *runtime* queries (`db/index.ts`), which
-  meant every request opened a slow, direct (non-pooled) connection —
-  a well-known cause of sluggish response times on Vercel+Neon. Fixed by
-  pointing `db/index.ts` at `POSTGRES_URL` instead (the pooled string
-  Vercel's Neon integration already provisions alongside `DATABASE_URL`),
-  falling back to `DATABASE_URL` only for local dev where `POSTGRES_URL`
-  isn't set. Don't undo this by pointing runtime queries back at
-  `DATABASE_URL`.
+- **Runtime queries use the pooled connection string; migrations use the
+  non-pooled one — don't mix these up.** `db/index.ts` connects with
+  `SG_POSTGRES_URL` (pooled), falling back to the older `POSTGRES_URL` /
+  `DATABASE_URL` only for local dev. `drizzle.config.ts` connects with
+  `SG_DATABASE_URL_UNPOOLED` (no `-pooler` in the hostname) because the
+  pooled string breaks the `postbuild` migration step (`npm run
+  db:migrate`, via drizzle-kit) during Vercel builds. Pointing runtime
+  queries at the non-pooled string (as this deployment did originally)
+  is a well-known cause of sluggish response times on Vercel+Neon — every
+  request opens a slow, direct connection instead of reusing a pooled one.
+  Don't undo this.
+- **The Neon DB region must match the Vercel function region.** This
+  project's functions run in `icn1` (Seoul); the original Neon resource
+  defaulted to `us-east-1`, so every DB round trip crossed the Pacific —
+  a second, compounding cause of the slowness above. Fixed by provisioning
+  a new Neon resource in `ap-southeast-1` (Singapore, the closest Neon
+  offers to Seoul) and migrating schema + data over. If the Vercel
+  function region ever changes, re-check this alignment.
 - **`BASE_URL` is required at build time**, not just runtime — omitting it
   fails the build with `Missing BASE_URL. Set BASE_URL in production.`
   during static page collection, not with an obviously-related error.

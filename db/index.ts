@@ -10,10 +10,10 @@ declare global {
 
 const client =
   globalThis.__pagesCmsPostgresClient
-  // POSTGRES_URL is the pooled Neon connection (via Vercel's integration);
-  // DATABASE_URL is kept non-pooled for drizzle-kit migrations at build time
-  // and is the only var set in local dev, hence the fallback.
-  ?? postgres(process.env.POSTGRES_URL ?? process.env.DATABASE_URL!, {
+  // SG_POSTGRES_URL is the pooled Singapore Neon connection (colocated with
+  // the Seoul Vercel function region); POSTGRES_URL/DATABASE_URL are the
+  // older US Neon vars, kept only as a fallback for local dev.
+  ?? postgres(process.env.SG_POSTGRES_URL ?? process.env.POSTGRES_URL ?? process.env.DATABASE_URL!, {
     // Keep conservative pool size in dev to avoid local connection spikes.
     max: parseInt(process.env.POSTGRES_MAX_CONNECTIONS || "5", 10),
   });
