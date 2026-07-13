@@ -50,7 +50,6 @@ async function main() {
       checks: "read",
       statuses: "read",
       contents: "write",
-      email_addresses: "read",
       metadata: "read",
     },
     default_events: [
@@ -69,7 +68,6 @@ async function main() {
     hook_attributes: {
       url: webhookUrl,
       active: true,
-      secret: webhookSecret,
     },
   };
 
