@@ -15,6 +15,9 @@ import { render } from "@react-email/render";
 export const auth = betterAuth({
   baseURL: getBaseUrl(),
   secret: (process.env.AUTH_SECRET || process.env.BETTER_AUTH_SECRET) as string,
+  emailAndPassword: {
+    enabled: true,
+  },
   user: {
     additionalFields: {
       githubUsername: {
