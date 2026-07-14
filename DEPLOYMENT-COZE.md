@@ -21,7 +21,7 @@ rest of that pipeline.
 |---|---|
 | App code | this repo, fork of upstream pages-cms, pushed to `github.com/cozmo-coze-ai/pagescms` |
 | Hosting | Vercel project **`pagescms`**, custom domain `cms.coze.care`, function region `icn1` (Seoul) |
-| Database | Neon Postgres, `ap-southeast-1` (Singapore) — resource `pagescms-sin`, env vars prefixed `SG_` (Vercel Storage integration on the `pagescms` project). A prior `us-east-1` Neon resource (unprefixed vars) was migrated away from due to cross-Pacific query latency and is slated for removal once the new one is confirmed stable in production. |
+| Database | Supabase Postgres, `ap-northeast-2` (Seoul) — project `coze` (ref `ihitnwzljfldctswwrsv`), env vars `SG_POSTGRES_URL` (Transaction pooler, runtime) / `SG_DATABASE_URL_UNPOOLED` (Session pooler, migrations — not a true direct connection, see `PERFORMANCE-NOTES.md`). Moved from Neon (`pagescms-sin`, Singapore) to avoid Neon's aggressive 5-min autosuspend; Neon is kept running, untouched, as a fallback until Supabase is confirmed stable — see `PERFORMANCE-NOTES.md` for the full migration record. |
 | GitHub App | **`coze-cms`** (App ID in Vercel env `GITHUB_APP_ID`), installed **only** on `cozmo-coze-ai/coze_cms` |
 | Email | Resend (`RESEND_API_KEY`), sending from `onboarding@resend.dev` (shared/unverified sender — mail sometimes lands in spam; verifying the `coze.care` domain in Resend would fix this but hasn't been done) |
 

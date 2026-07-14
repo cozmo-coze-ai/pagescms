@@ -38,8 +38,40 @@ Both are live in production as of commit `e62d2f9`.
   `app/api/cron/keep-alive/route.ts` (runs `SELECT 1`, checks a
   `CRON_SECRET` bearer token that Vercel's cron injects automatically) plus
   a `vercel.json` cron entry hitting it every 4 minutes. `CRON_SECRET` env
-  var added to Production. **Not yet deployed** — needs a commit + push to
-  take effect (Vercel Cron only runs against what's actually deployed).
+  var added to Production. Live as of commit `0824212`. Since the DB moved
+  to Supabase (below), this cron now keeps Supabase warm instead — harmless
+  either way, and Supabase's own free-tier pause window is 1 week (vs
+  Neon's 5 min), so this is now belt-and-suspenders rather than load-bearing.
+
+## Database moved: Neon → Supabase
+
+The runtime and migration DB connection was switched from Neon
+(`pagescms-sin`, `ap-southeast-1`) to a new Supabase project (`coze`,
+project ref `ihitnwzljfldctswwrsv`, region `ap-northeast-2` — Seoul, an
+exact match for the Vercel function region `icn1`, even closer than Neon's
+Singapore). Reason: Neon's free-tier autosuspend (5 min idle) was
+contributing to the cold-start slowness above; this Supabase project's
+autosuspend window is far more forgiving (1 week) and the CMS gets daily
+traffic, so it shouldn't be hit in practice.
+
+- Schema recreated on Supabase from `db/schema.ts` via
+  `db/supabase-init.sql` (not committed — kept locally; matches the current
+  schema exactly, not a replay of the incremental migration history in
+  `db/migrations/`).
+- All existing data (users, sessions, collaborators, config, file/media
+  caches) copied over row-for-row from Neon; serial ID sequences reset to
+  match.
+- `SG_POSTGRES_URL` (runtime) now points at Supabase's Transaction pooler
+  (port 6543); `SG_DATABASE_URL_UNPOOLED` (migrations) points at Supabase's
+  Session pooler (port 5432) rather than a true direct connection — Supabase
+  direct connections are IPv6-only unless the paid IPv4 add-on is enabled,
+  and Vercel's build environment needs IPv4. Session pooler is the
+  IPv4-compatible alternative Supabase recommends for exactly this case.
+- **Neon (`pagescms-sin`) is intentionally left running, untouched, as a
+  fallback** — nothing has been deleted there. Reverting is just swapping
+  `SG_POSTGRES_URL` / `SG_DATABASE_URL_UNPOOLED` back to the Neon values.
+  Decommission it only once Supabase has been confirmed stable in
+  production for a while (see Cleanup below).
 
 ## Diagnosed but not yet fixed (leave for now, revisit later)
 
@@ -49,9 +81,13 @@ Both are live in production as of commit `e62d2f9`.
 
 - **Rotate the Neon Postgres password** — it was pasted into a chat during
   this investigation, treat it as exposed regardless of the "Sensitive" env
-  flag.
-- **Remove the old `us-east-1` Neon resource** once the Singapore one has
-  been stable in production for a while.
+  flag. Lower urgency now that Neon is no longer the live DB, but still
+  exposed as long as that Neon project exists.
+- **Rotate the Supabase database password** — same issue, pasted into chat
+  twice during the migration above. This one *is* the live DB's password,
+  so treat this with more urgency than the Neon one.
+- **Delete the Neon project** once Supabase has proven stable in production
+  for a while — see "Database moved" section above.
 - Leftover `.agents/`, `.claude/`, `skills-lock.json` in the repo root —
   auto-installed as a side effect of provisioning the Neon integration via
   CLI, harmless but unused; delete if the clutter bothers you.
