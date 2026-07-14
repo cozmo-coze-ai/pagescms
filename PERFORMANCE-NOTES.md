@@ -24,26 +24,26 @@ CMS.
 
 Both are live in production as of commit `e62d2f9`.
 
-## Diagnosed but not yet fixed (leave for now, revisit later)
-
-- **GitHub API cache TTLs are short.** `BRANCH_HEAD_TTL_MS` and
-  `REPO_META_TTL_MS` in `lib/github-cache-file.ts` default to 15000 (15s).
-  That means routine navigation triggers a live round-trip to GitHub's API
-  every ~15s just to check branch/repo freshness — a real cost from Seoul.
-  Actual file content caches for 24h (`FILE_TTL_MIN=1440`) so that part's
-  fine. Fix would be bumping these two env vars (e.g. to 60000–120000ms);
-  zero code change, editors here only push through the CMS itself so a
-  staler freshness check is low-risk.
+- **GitHub API cache TTLs were short.** `BRANCH_HEAD_TTL_MS` and
+  `REPO_META_TTL_MS` in `lib/github-cache-file.ts` defaulted to 15000 (15s),
+  so routine navigation triggered a live round-trip to GitHub's API every
+  ~15s just to check branch/repo freshness — a real cost from Seoul. Fixed:
+  both set to `120000` (2 min) via Vercel env vars on the `pagescms`
+  project (Production). Zero code change; editors here only push through
+  the CMS itself so a staler freshness check is low-risk. Takes effect on
+  next request, no redeploy needed.
 - **Neon free-tier autosuspend.** Compute suspends after 5 min of no
   queries; first request after any idle period pays a cold-wake tax on top
-  of Vercel's own cold start. For a lightly-used internal tool this could be
-  most visits, not an edge case. Two ways to permanently fix, not yet
-  chosen:
-  1. Free: add a Vercel Cron Job hitting a `SELECT 1` endpoint every ~4 min
-     to keep the compute active. No cost, standard pattern for this Neon+
-     Vercel combo.
-  2. Paid: upgrade off Neon's free plan and disable/extend the autosuspend
-     timeout directly (~$19/mo+, no workaround needed).
+  of Vercel's own cold start. Fixed with the free option: added
+  `app/api/cron/keep-alive/route.ts` (runs `SELECT 1`, checks a
+  `CRON_SECRET` bearer token that Vercel's cron injects automatically) plus
+  a `vercel.json` cron entry hitting it every 4 minutes. `CRON_SECRET` env
+  var added to Production. **Not yet deployed** — needs a commit + push to
+  take effect (Vercel Cron only runs against what's actually deployed).
+
+## Diagnosed but not yet fixed (leave for now, revisit later)
+
+(none currently — see Cleanup still owed below for unrelated items)
 
 ## Cleanup still owed (unrelated to speed, surfaced during this work)
 
