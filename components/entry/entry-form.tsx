@@ -1034,6 +1034,7 @@ const EntryForm = ({
   filePath,
   onDirtyChange,
   onChangeRegistered,
+  layout,
 }: {
   fields: Field[];
   contentObject?: Record<string, unknown>;
@@ -1041,6 +1042,9 @@ const EntryForm = ({
   filePath?: React.ReactNode;
   onDirtyChange?: (isDirty: boolean) => void;
   onChangeRegistered?: () => void;
+  // Custom arrangement of the rendered top-level fields, keyed by field name.
+  // Without it the fields render as a single stacked column.
+  layout?: (fieldNodes: Record<string, React.ReactNode>) => React.ReactNode;
 }) => {
   const zodSchema = useMemo(() => {
     return generateZodSchema(fields);
@@ -1158,12 +1162,22 @@ const EntryForm = ({
     [form, handleSubmit, runBeforeValidationHooks],
   );
 
+  const renderedFields = renderFields(
+    fields,
+    undefined,
+    registerBeforeSubmitHook,
+    runBeforeValidationHooks,
+  );
+
   return (
     <Form {...form}>
       <form
         id="entry-form"
         onSubmit={handleFormSubmit}
-        className="w-full max-w-screen-md mx-auto grid items-start gap-6"
+        className={cn(
+          "w-full",
+          !layout && "max-w-screen-md mx-auto grid items-start gap-6",
+        )}
       >
         {filePath && (
           <div className="space-y-2 overflow-hidden">
@@ -1171,7 +1185,13 @@ const EntryForm = ({
             {filePath}
           </div>
         )}
-        {renderFields(fields, undefined, registerBeforeSubmitHook, runBeforeValidationHooks)}
+        {layout
+          ? layout(
+              Object.fromEntries(
+                fields.map((field, index) => [field.name, renderedFields[index]]),
+              ),
+            )
+          : renderedFields}
       </form>
     </Form>
   );

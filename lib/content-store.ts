@@ -9,6 +9,7 @@
  * files to Postgres rows.
  */
 
+import { after } from "next/server";
 import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { cmsItineraryTable, cmsHomepageContentTable, cmsDeployTriggerTable } from "@/db/schema";
@@ -24,26 +25,90 @@ const config = { object: cmsConfig };
 // coze_client so the public site picks up the change without a manual
 // restart. Debounced via a DB row (not in-memory — this runs across
 // separate serverless invocations that don't share memory) so a burst of
-// saves in one editing session collapses into a single rebuild. Vercel
-// builds cost money — keep this window generous, not tight.
-const DEPLOY_TRIGGER_DEBOUNCE = "5 minutes";
+// saves in one editing session collapses into a few rebuilds.
+//
+// The debounce alone has a race: a save landing while an in-flight build is
+// already fetching content gets suppressed and never re-fires, leaving the
+// site permanently stale (observed 2026-07-15: a 01:17:37 save lost to the
+// build triggered at 01:17:31). So suppressed saves also schedule a
+// trailing re-fire via `after()` — once the window expires, the first
+// waiter to win the atomic row update fires one catch-up build that fetches
+// current content; the rest lose the update and do nothing.
+const DEPLOY_TRIGGER_DEBOUNCE_SECONDS = 60;
+
+// Durably record "content changed". Runs on every mutation before any
+// trigger attempt, so no save can be forgotten: whether a build fires now
+// or not, dirty_at > triggered_at keeps saying "a deploy is owed" until one
+// actually fires after the change.
+const markContentDirty = async () => {
+  await db.execute(sql`
+    insert into ${cmsDeployTriggerTable} (id, triggered_at, dirty_at)
+    values (1, to_timestamp(0), now())
+    on conflict (id) do update set dirty_at = now()
+  `);
+};
+
+// Fire iff a deploy is owed (content dirtier than the last trigger) and the
+// debounce window has passed. Atomic single statement, so concurrent
+// attempts (saves, trailing re-fires, the cron sweep) elect one winner and
+// the rest do nothing. After a successful fire, triggered_at > dirty_at
+// makes further attempts no-ops until the next save — no redundant builds.
+const attemptDeployTrigger = async (hookUrl: string): Promise<boolean> => {
+  const won = await db.execute(sql`
+    update ${cmsDeployTriggerTable}
+    set triggered_at = now()
+    where ${cmsDeployTriggerTable.id} = 1
+      and ${cmsDeployTriggerTable.dirtyAt} > ${cmsDeployTriggerTable.triggeredAt}
+      and ${cmsDeployTriggerTable.triggeredAt} < now() - interval '${sql.raw(`${DEPLOY_TRIGGER_DEBOUNCE_SECONDS} seconds`)}'
+    returning id
+  `);
+  if (won.length === 0) return false;
+
+  const response = await fetch(hookUrl, { method: "POST" });
+  if (!response.ok) {
+    // Surface dead/revoked hook URLs in the logs instead of failing silently.
+    console.warn("[content-store] coze_client deploy hook returned an error", {
+      status: response.status,
+      statusText: response.statusText,
+    });
+  }
+  return true;
+};
+
+// Used by /api/cron/deploy-sweep — the durable backstop that guarantees a
+// dirty save eventually deploys even if every in-process attempt died.
+const sweepDeployTrigger = async (): Promise<"fired" | "clean" | "unconfigured"> => {
+  const hookUrl = process.env.COZE_CLIENT_DEPLOY_HOOK_URL;
+  if (!hookUrl) return "unconfigured";
+  return (await attemptDeployTrigger(hookUrl)) ? "fired" : "clean";
+};
+
 const triggerCozeClientDeploy = async () => {
   const hookUrl = process.env.COZE_CLIENT_DEPLOY_HOOK_URL;
   if (!hookUrl) return;
 
   try {
-    // Atomic: only wins (and gets a row back) if no trigger fired within
-    // the debounce window, or this is the first-ever trigger.
-    const won = await db.execute(sql`
-      insert into ${cmsDeployTriggerTable} (id, triggered_at)
-      values (1, now())
-      on conflict (id) do update set triggered_at = now()
-      where ${cmsDeployTriggerTable.triggeredAt} < now() - interval '${sql.raw(DEPLOY_TRIGGER_DEBOUNCE)}'
-      returning id
-    `);
-    if (won.length === 0) return;
+    await markContentDirty();
 
-    await fetch(hookUrl, { method: "POST" });
+    const fired = await attemptDeployTrigger(hookUrl);
+    if (!fired) {
+      // Suppressed by the debounce: re-attempt once the window expires
+      // (post-response; Vercel keeps the function alive for `after`
+      // callbacks). Best-effort fast path — if this dies, the cron sweep
+      // still picks the dirty flag up.
+      after(async () => {
+        await new Promise((resolve) =>
+          setTimeout(resolve, (DEPLOY_TRIGGER_DEBOUNCE_SECONDS + 5) * 1000),
+        );
+        try {
+          await attemptDeployTrigger(hookUrl);
+        } catch (error) {
+          console.warn("[content-store] trailing deploy re-fire failed", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      });
+    }
   } catch (error) {
     console.warn("[content-store] failed to trigger coze_client deploy", {
       error: error instanceof Error ? error.message : String(error),
@@ -279,6 +344,7 @@ const saveHomepage = async (contentObject: Record<string, any>, userId: string) 
 };
 
 export {
+  sweepDeployTrigger,
   listItineraries,
   getItinerary,
   createItinerary,

@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useFormContext } from "react-hook-form";
 import { createPortal } from "react-dom";
+import { Code2, PencilLine } from "lucide-react";
 import { Editor, type ImagePickerContext } from "@/components/ui/editor";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -806,41 +807,35 @@ const EditComponent = forwardRef(
     );
 
     const triggerClass = cn(
-      "relative inline-flex h-[calc(100%-1px)] items-center justify-center whitespace-nowrap border border-transparent px-2 text-xs text-foreground/60 transition-all",
+      "relative inline-flex h-full items-center justify-center gap-1 whitespace-nowrap rounded-md border border-transparent px-2.5 text-[11px] font-medium text-muted-foreground transition-all",
       "hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring",
       "disabled:pointer-events-none disabled:opacity-50",
-      "dark:text-muted-foreground dark:hover:text-foreground",
+      "dark:hover:text-foreground",
     );
+    const activeTriggerClass =
+      "border-border bg-card text-foreground shadow-xs dark:border-input dark:bg-input/30 dark:text-foreground";
 
     const switcherNode = (
-      <div className="inline-flex h-6 w-fit items-center justify-center rounded-md bg-muted p-0.5 text-muted-foreground">
+      <div className="inline-flex h-7 w-fit items-center justify-center gap-0.5 rounded-lg border border-border bg-secondary p-0.5 text-muted-foreground">
         <button
           type="button"
-          className={cn(
-            triggerClass,
-            "rounded-sm",
-            mode === "editor" &&
-              "bg-background text-foreground dark:border-input dark:bg-input/30 dark:text-foreground",
-          )}
+          className={cn(triggerClass, mode === "editor" && activeTriggerClass)}
           onClick={() => void handleSwitchToEditor()}
           disabled={isReadonly || isTransforming || pendingUploads > 0}
           data-active={mode === "editor" ? "true" : undefined}
         >
-          Editor
+          <PencilLine className="h-3 w-3" />
+          Write
         </button>
         <button
           type="button"
-          className={cn(
-            triggerClass,
-            "rounded-sm",
-            mode === "source" &&
-              "bg-background text-foreground dark:border-input dark:bg-input/30 dark:text-foreground",
-          )}
+          className={cn(triggerClass, mode === "source" && activeTriggerClass)}
           onClick={() => void handleSwitchToSource()}
           disabled={isReadonly || isTransforming || pendingUploads > 0}
           data-active={mode === "source" ? "true" : undefined}
         >
-          Source
+          <Code2 className="h-3 w-3" />
+          {format === "html" ? "HTML" : "Markdown"}
         </button>
       </div>
     );

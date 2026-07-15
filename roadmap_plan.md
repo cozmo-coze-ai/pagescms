@@ -167,6 +167,22 @@ deployed.
       published bodies) for draft/polish/title workflows. List API now returns
       coverPath/tagColor, ordered by updatedAt desc.
 
+### Deploy-trigger race fix (2026-07-15 evening)
+- [x] **Root-caused "saved but not on coze.care"**: the 5-min leading debounce had a race —
+      a save landing while the in-flight build was already fetching content got suppressed
+      and never re-fired (observed: 01:17:37 save lost to the 01:17:31 trigger's build;
+      confirmed by body-probe diff of live site vs DB). Hook itself verified alive (manual
+      POST → 201 → fresh content live ~90s later). **Proper fix** (three layers):
+      (1) durable dirty tracking — every save upserts `cms_deploy_trigger.dirty_at`
+      (migration `0016_ancient_doctor_spectrum.sql`, apply before deploying); the trigger
+      fires only when `dirty_at > triggered_at` + 60s debounce, atomically, so concurrent
+      attempts elect one winner and clean state never rebuilds; (2) fast path — immediate
+      attempt per save plus a trailing `after()` re-fire when suppressed; (3) guarantee —
+      `/api/cron/deploy-sweep` (vercel.json, every 5 min, CRON_SECRET-authed like the old
+      keep-alive) fires the catch-up build if every in-process attempt died. Hook POST now
+      logs non-OK responses instead of failing silently. Needs: migration 0016 applied +
+      `CRON_SECRET` present in the pagescms Vercel env.
+
 ### One-time data migration
 - [x] `pagescms/scripts/migrate-content-to-supabase.mjs` — written and **dry-run verified against
       the real cached `coze_cms` checkout**: found 32 itinerary markdown files, 453 media files

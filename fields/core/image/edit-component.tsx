@@ -277,17 +277,17 @@ const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputEl
               </div>
             )
           )}
-          {!isReadonly && remainingSlots > 0 && (
+          {!isReadonly && (isMultiple ? remainingSlots > 0 : true) && (
             <div className="flex gap-2">
               <MediaUpload.Trigger>
                 <Button type="button" size="sm" variant="outline" className="gap-2">
                   <Upload className="h-3.5 w-3.5"/>
-                  Upload
+                  {!isMultiple && files.length > 0 ? "Replace" : "Upload"}
                 </Button>
               </MediaUpload.Trigger>
               <MediaDialog
                 media={mediaConfig?.name}
-                maxSelected={remainingSlots === Infinity ? undefined : remainingSlots}
+                maxSelected={isMultiple ? (remainingSlots === Infinity ? undefined : remainingSlots) : 1}
                 extensions={allowedExtensions}
                 onSubmit={handleSelected}
               >

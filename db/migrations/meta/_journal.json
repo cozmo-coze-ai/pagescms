@@ -113,6 +113,13 @@
       "when": 1784100109584,
       "tag": "0015_clumsy_joystick",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1784111520591,
+      "tag": "0016_ancient_doctor_spectrum",
+      "breakpoints": true
     }
   ]
 }

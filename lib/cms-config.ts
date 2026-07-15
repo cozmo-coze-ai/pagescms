@@ -29,6 +29,7 @@ const cmsConfig = {
           label: "Title",
           type: "string",
           required: true,
+          options: { placeholder: "Untitled", wrap: true },
           description: "Shown on the itinerary card and page heading.",
         },
         {

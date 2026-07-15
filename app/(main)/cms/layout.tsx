@@ -30,6 +30,7 @@ export default function CmsLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   const navItems = [
+    { href: "/cms", label: "Home", exact: true },
     { href: "/cms/itineraries", label: "Itineraries" },
     { href: "/cms/homepage", label: "Homepage" },
   ];
@@ -59,7 +60,7 @@ export default function CmsLayout({ children }: { children: React.ReactNode }) {
                     href={item.href}
                     className={cn(
                       "text-[13px] transition-colors hover:text-foreground",
-                      pathname?.startsWith(item.href)
+                      (item.exact ? pathname === item.href : pathname?.startsWith(item.href))
                         ? "font-medium text-foreground"
                         : "text-muted-foreground",
                     )}

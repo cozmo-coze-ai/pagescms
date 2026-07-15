@@ -1,0 +1,1 @@
+ALTER TABLE "cms_deploy_trigger" ADD COLUMN "dirty_at" timestamp DEFAULT now() NOT NULL;

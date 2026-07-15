@@ -1,16 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
 import { DocumentTitle } from "@/components/document-title";
-import { EntryForm } from "@/components/entry/entry-form";
-import { WritingKit } from "@/components/cms/writing-kit";
-import { Button } from "@/components/ui/button";
-import { cmsConfig } from "@/lib/cms-config";
-
-const itineraryFields = cmsConfig.content.find((item) => item.name === "itineraries")!.fields;
+import { ItineraryEditor } from "@/components/cms/itinerary-editor";
 
 export default function NewItineraryPage() {
   const router = useRouter();
@@ -31,35 +24,13 @@ export default function NewItineraryPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <>
       <DocumentTitle title="New itinerary" />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <Link
-            href="/cms/itineraries"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Itineraries
-          </Link>
-          <h1 className="mt-0.5 font-serif text-xl tracking-tight">New itinerary</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Type the URL slug early — photo uploads need it.
-          </p>
-        </div>
-        <Button type="submit" form="entry-form" size="sm">
-          Create itinerary
-        </Button>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
-        <div className="min-w-0">
-          <EntryForm fields={itineraryFields as any} onSubmit={handleSubmit} />
-        </div>
-        <div className="lg:sticky lg:top-16 lg:self-start">
-          <WritingKit />
-        </div>
-      </div>
-    </div>
+      <ItineraryEditor
+        onSubmit={handleSubmit}
+        saveLabel="Create itinerary"
+        hint="Type the URL slug early — photo uploads need it."
+      />
+    </>
   );
 }

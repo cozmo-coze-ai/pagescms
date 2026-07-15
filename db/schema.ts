@@ -259,7 +259,11 @@ const cmsEditorInviteTable = pgTable("cms_editor_invite", {
 
 const cmsDeployTriggerTable = pgTable("cms_deploy_trigger", {
   id: integer("id").primaryKey().default(1),
-  triggeredAt: timestamp("triggered_at").notNull().defaultNow()
+  triggeredAt: timestamp("triggered_at").notNull().defaultNow(),
+  // Durable "content changed" marker: set on every save, compared against
+  // triggered_at so a missed/raced build is always detectable later (by the
+  // next save, the trailing re-fire, or the cron sweep).
+  dirtyAt: timestamp("dirty_at").notNull().defaultNow()
 }, table => ({
   chk_cms_deploy_trigger_singleton: check("chk_cms_deploy_trigger_singleton", sql`${table.id} = 1`)
 }));

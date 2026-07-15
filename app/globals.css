@@ -127,6 +127,19 @@
 }
 
 
+/* Tailwind v4 preflight sets buttons to cursor:default — restore the hand
+ * cursor for anything clickable (except disabled controls). */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  [role="combobox"]:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  label[for] {
+    cursor: pointer;
+  }
+}
+
 /* ---------------------------------------------------------------------------
  * Coze Studio theme — the /cms editor wears the public site's identity
  * (coze_client/src/styles/global.css: paper, ink, curator gold, Lora).
@@ -220,4 +233,133 @@
 @media (prefers-reduced-motion: reduce) {
   .studio-rise { animation: none; }
   .studio-lift, .studio-lift:hover { transition: none; transform: none; }
+}
+
+
+/* ---------------------------------------------------------------------------
+ * Itinerary editor (components/cms/itinerary-editor.tsx). The EntryForm
+ * renders through a custom layout; these class hooks style its three zones:
+ * .editor-title — the page title as a naked serif heading,
+ * .editor-doc — the body as a borderless document canvas,
+ * .editor-settings — the compact "Page settings" rail.
+ * ------------------------------------------------------------------------ */
+
+/* Page title — a heading you type into, not a boxed input. */
+.editor-title [data-slot="form-item"] {
+  gap: 4px;
+}
+.editor-title [data-slot="form-item"] > div:first-child,
+.editor-title [data-slot="form-description"] {
+  display: none;
+}
+.editor-title :is(input, textarea) {
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  resize: none;
+  overflow: hidden;
+  font-family: var(--font-lora);
+  font-size: clamp(26px, 4vw, 34px);
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.editor-title :is(input, textarea):focus-visible {
+  outline: none;
+  box-shadow: none;
+  border: none;
+}
+.editor-title :is(input, textarea)::placeholder {
+  color: var(--studio-ink-faint, var(--muted-foreground));
+}
+
+/* Document — no input chrome; writes like a page. The label row ("Content"
+ * + the Editor/Source switcher) doubles as the divider between the title
+ * and the body. */
+.editor-doc > [data-slot="form-item"] > div:first-child {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.editor-doc label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--studio-ink-faint, var(--muted-foreground));
+}
+.editor-doc [data-slot="badge"],
+.editor-doc [data-slot="form-description"] {
+  display: none;
+}
+.editor-doc .cn-editor .tiptap {
+  min-height: 60vh;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 4px 0 64px;
+}
+.editor-doc .cn-editor .tiptap:focus-visible,
+.editor-doc .cn-editor .tiptap:focus-within {
+  border: none;
+  box-shadow: none;
+  outline: none;
+}
+
+/* Settings rail — small labels, visible compact controls, helper text shown. */
+.editor-settings [data-slot="form-item"] {
+  gap: 6px;
+}
+.editor-settings [data-slot="form-item"] > div:first-child {
+  min-height: 0;
+  height: auto;
+}
+.editor-settings label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+.editor-settings [data-slot="badge"] {
+  display: none;
+}
+.editor-settings [data-slot="form-description"] {
+  font-size: 11px;
+  line-height: 1.45;
+}
+.editor-settings [data-slot="form-message"] {
+  font-size: 11px;
+}
+.editor-settings input[data-slot="input"] {
+  height: 2rem;
+  font-size: 13px;
+}
+.editor-settings [data-slot="input-group"] {
+  min-height: 2rem;
+  font-size: 13px;
+}
+
+/* Slug reads like a URL fragment. */
+.editor-field-slug input[data-slot="input"] {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 12px;
+}
+
+/* Published — label and switch share one line, helper text below. */
+.editor-field-published [data-slot="form-item"] {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+.editor-field-published label {
+  font-size: 13px;
+  color: var(--foreground);
+}
+.editor-field-published [data-slot="form-description"],
+.editor-field-published [data-slot="form-message"] {
+  grid-column: 1 / -1;
+  margin-top: -2px;
 }
