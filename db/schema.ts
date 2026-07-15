@@ -9,6 +9,7 @@ import {
   index,
   uniqueIndex,
   jsonb,
+  check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -209,6 +210,60 @@ const actionRunTable = pgTable("action_run", {
   idx_action_run_workflowRunId: uniqueIndex("idx_action_run_workflowRunId").on(table.workflowRunId),
 }));
 
+const cmsItineraryTable = pgTable("cms_itinerary", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull(),
+  title: text("title").notNull(),
+  category: text("category").notNull(),
+  tag: text("tag"),
+  tagColor: text("tag_color"),
+  coverPath: text("cover_path"),
+  published: boolean("published").notNull().default(true),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedBy: text("updated_by").references(() => userTable.id)
+}, table => ({
+  uq_cms_itinerary_slug: uniqueIndex("uq_cms_itinerary_slug").on(table.slug)
+}));
+
+const cmsHomepageContentTable = pgTable("cms_homepage_content", {
+  id: integer("id").primaryKey().default(1),
+  data: jsonb("data").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedBy: text("updated_by").references(() => userTable.id)
+}, table => ({
+  chk_cms_homepage_content_singleton: check("chk_cms_homepage_content_singleton", sql`${table.id} = 1`)
+}));
+
+// Singleton row tracking the last coze_client deploy-hook trigger, so the
+// debounce guard in content-store.ts survives across separate serverless
+// invocations (in-memory state doesn't). Vercel builds cost money — this
+// keeps a burst of saves in one editing session from firing one rebuild per save.
+// Editor invites for the Supabase-native CMS: a "set your password" link
+// with flat permissions — accepting simply creates a normal user (no
+// per-repo ACL). Replaces the GitHub-era OTP-based collaborator_invite flow.
+// One live invite per email (case-insensitive); re-inviting replaces it.
+const cmsEditorInviteTable = pgTable("cms_editor_invite", {
+  id: serial("id").primaryKey(),
+  token: text("token").notNull(),
+  email: text("email").notNull(),
+  invitedBy: text("invited_by"),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, table => ({
+  uq_cms_editor_invite_token: uniqueIndex("uq_cms_editor_invite_token").on(table.token),
+  uq_cms_editor_invite_email_ci: uniqueIndex("uq_cms_editor_invite_email_ci").on(sql`lower(${table.email})`),
+}));
+
+const cmsDeployTriggerTable = pgTable("cms_deploy_trigger", {
+  id: integer("id").primaryKey().default(1),
+  triggeredAt: timestamp("triggered_at").notNull().defaultNow()
+}, table => ({
+  chk_cms_deploy_trigger_singleton: check("chk_cms_deploy_trigger_singleton", sql`${table.id} = 1`)
+}));
+
 export {
   userTable,
   sessionTable,
@@ -221,5 +276,9 @@ export {
   cacheFileTable,
   cacheFileMetaTable,
   cachePermissionTable,
-  actionRunTable
+  actionRunTable,
+  cmsItineraryTable,
+  cmsHomepageContentTable,
+  cmsDeployTriggerTable,
+  cmsEditorInviteTable
 };

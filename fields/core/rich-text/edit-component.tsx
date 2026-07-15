@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useFormContext } from "react-hook-form";
 import { createPortal } from "react-dom";
+import { useParams } from "next/navigation";
 import { Editor, type ImagePickerContext } from "@/components/ui/editor";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,16 +26,16 @@ import {
   getRawUrl,
   getRelativeUrl,
   htmlSwapPrefix,
+  isMediaPublicUrl,
+  mediaPublicUrl,
   rawToRelativeUrls,
   relativeToRawUrls,
   swapPrefix,
-} from "@/lib/github-image";
+} from "@/lib/media-path";
 import {
   decodePathSafely,
   extensionCategories,
   getFileExtension,
-  getUploadFileName,
-  joinPathSegments,
   normalizeMediaPath,
   normalizePath,
 } from "@/lib/utils/file";
@@ -329,6 +330,10 @@ const EditComponent = forwardRef(
     } = props;
     void ref;
     const form = useFormContext();
+    // Itinerary slug from the /cms/itineraries/[slug] route — inline images
+    // are stored per itinerary; null on pages without one (new, homepage).
+    const params = useParams();
+    const slug = typeof params?.slug === "string" ? decodeURIComponent(params.slug) : null;
 
     const options = field?.options ?? {};
     const isReadonly = Boolean(field?.readonly);
@@ -466,7 +471,7 @@ const EditComponent = forwardRef(
       (url: string) => {
         if (!config || !mediaConfig) return url;
         if (!url) return url;
-        if (isExternalUrl(url) && !url.startsWith("https://raw.githubusercontent.com/")) {
+        if (isExternalUrl(url) && !isMediaPublicUrl(url)) {
           return url;
         }
 
@@ -758,7 +763,7 @@ const EditComponent = forwardRef(
 
     const handleUploadImage = useCallback(
       async (file: File) => {
-        if (!config || !mediaConfig) return null;
+        if (!config || !mediaConfig || !slug) return null;
 
         const extension = getFileExtension(file.name);
         if (
@@ -772,34 +777,11 @@ const EditComponent = forwardRef(
           );
         }
 
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result ?? ""));
-          reader.onerror = () =>
-            reject(new Error("Failed to read image file."));
-          reader.readAsDataURL(file);
-        });
-        const content = dataUrl.replace(/^(.+,)/, "");
-        const uploadFilename = getUploadFileName(
-          file.name,
-          options.rename ?? mediaConfig.rename,
-        );
-        const targetPath = joinPathSegments([
-          rootPath ?? mediaConfig.input,
-          uploadFilename,
-        ]);
-
+        const formData = new FormData();
+        formData.append("file", file);
         const response = await fetch(
-          `/api/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/files/${encodeURIComponent(targetPath)}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "media",
-              name: mediaConfig.name,
-              content,
-            }),
-          },
+          `/api/cms/media/${encodeURIComponent(slug)}`,
+          { method: "POST", body: formData },
         );
         if (!response.ok) {
           throw new Error(
@@ -807,26 +789,21 @@ const EditComponent = forwardRef(
           );
         }
 
-        const payload = (await response.json()) as ApiResponse<FileSaveData>;
+        const payload = (await response.json()) as ApiResponse<
+          FileSaveData & { publicUrl?: string }
+        >;
         if (payload.status !== "success") {
           throw new Error(payload.message);
         }
 
-        const uploadedPath = payload.data.path || targetPath;
-        const src = await toDisplayImageUrl(uploadedPath);
+        const src =
+          payload.data.publicUrl || mediaPublicUrl(payload.data.path || "");
         return {
           src,
           alt: file.name,
         };
       },
-      [
-        allowedExtensions,
-        config,
-        mediaConfig,
-        options.rename,
-        rootPath,
-        toDisplayImageUrl,
-      ],
+      [allowedExtensions, config, mediaConfig, slug],
     );
 
     const triggerClass = cn(
@@ -906,8 +883,8 @@ const EditComponent = forwardRef(
               format={format}
               className="cn-editor"
               enableImages={Boolean(mediaConfig)}
-              enableImagePasteDrop={Boolean(mediaConfig)}
-              onUploadImage={mediaConfig ? handleUploadImage : undefined}
+              enableImagePasteDrop={Boolean(mediaConfig && slug)}
+              onUploadImage={mediaConfig && slug ? handleUploadImage : undefined}
               onRequestImage={mediaConfig ? handleRequestImage : undefined}
               onPendingUploadsChange={setPendingUploads}
               disabled={isReadonly}

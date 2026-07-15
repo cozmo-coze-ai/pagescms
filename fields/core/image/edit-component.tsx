@@ -8,7 +8,8 @@ import { MediaUpload } from "@/components/media/media-upload";
 import { MediaDialog } from "@/components/media/media-dialog";
 import { Upload, FolderOpen, ArrowUpRight, Trash2 } from "lucide-react";
 import { useConfig } from "@/contexts/config-context";
-import { normalizeMediaPath, normalizePath } from "@/lib/utils/file";
+import { mediaPublicUrl } from "@/lib/media-path";
+import { normalizeMediaPath } from "@/lib/utils/file";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
@@ -16,7 +17,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { getSchemaByName } from "@/lib/schema";
 import { Thumbnail } from "@/components/thumbnail";
 import { getAllowedExtensions } from "./index";
-import type { Config } from "@/types/config";
 import type { Field } from "@/types/field";
 import type { FileSaveData } from "@/types/api";
 
@@ -47,9 +47,8 @@ type FieldOptions = {
   rename?: boolean | "safe" | "random";
 };
 
-const ImageTeaser = ({ file, config, onRemove }: { 
+const ImageTeaser = ({ file, onRemove }: { 
   file: string;
-  config: Pick<Config, "owner" | "repo" | "branch">;
   onRemove?: () => void;
 }) => {
   return (
@@ -59,16 +58,16 @@ const ImageTeaser = ({ file, config, onRemove }: {
           <TooltipTrigger asChild>
             <Button type="button" variant="ghost" size="icon-xs" asChild className="text-muted-foreground hover:text-foreground">
               <a
-                href={`https://github.com/${config.owner}/${config.repo}/blob/${config.branch}/${file}`}
+                href={mediaPublicUrl(file)}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="View image on GitHub"
+                aria-label="View full size"
               >
                 <ArrowUpRight />
               </a>
             </Button>
           </TooltipTrigger>
-          <TooltipContent>View on GitHub</TooltipContent>
+          <TooltipContent>View full size</TooltipContent>
         </Tooltip>
         {onRemove && (
           <Tooltip>
@@ -92,11 +91,9 @@ const ImageTeaser = ({ file, config, onRemove }: {
   )
 };
 
-const SortableItem = ({ id, file, config, media, onRemove, readonly = false }: { 
+const SortableItem = ({ id, file, onRemove, readonly = false }: { 
   id: string;
   file: string;
-  config: Pick<Config, "owner" | "repo" | "branch">;
-  media: string;
   onRemove?: () => void;
   readonly?: boolean;
 }) => {
@@ -120,9 +117,9 @@ const SortableItem = ({ id, file, config, media, onRemove, readonly = false }: {
   return (
     <div ref={setNodeRef} style={style}>
       <div title={file} className={readonly ? undefined : "cursor-move"} {...(!readonly ? attributes : {})} {...(!readonly ? listeners : {})}>
-        <Thumbnail name={media} path={file} className="rounded-md w-28 h-28"/>
+        <Thumbnail path={file} className="rounded-md w-28 h-28"/>
       </div>
-      <ImageTeaser file={file} config={config} onRemove={onRemove} />
+      <ImageTeaser file={file} onRemove={onRemove} />
     </div>
   );
 };
@@ -147,6 +144,9 @@ const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputEl
         : []
   );
 
+  // Optional: values are Supabase Storage bucket keys (`<slug>/<file>`)
+  // stored as-is, so unlike the git era no media config is required — it
+  // only narrows allowed extensions when present.
   const mediaConfig = useMemo<MediaSchema | undefined>(() => {
     return (config.object?.media?.length && options.media !== false)
       ? options.media && typeof options.media === 'string'
@@ -155,29 +155,7 @@ const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputEl
       : undefined;
   }, [config.object, options.media]);
 
-  const rootPath = useMemo(() => {
-    if (!options.path) {
-      return mediaConfig?.input;
-    }
-
-    const mediaRoot = mediaConfig?.input;
-    if (!mediaRoot) {
-      return normalizePath(options.path);
-    }
-
-    const normalizedPath = normalizePath(options.path);
-    const normalizedMediaPath = normalizePath(mediaRoot);
-
-    if (!normalizedPath.startsWith(normalizedMediaPath)) {
-      console.warn(`"${options.path}" is not within media root "${mediaRoot}". Defaulting to media root.`);
-      return mediaRoot;
-    }
-
-    return normalizedPath;
-  }, [options.path, mediaConfig?.input]);
-
   const allowedExtensions = useMemo(() => {
-    if (!mediaConfig) return [];
     return getAllowedExtensions(field, mediaConfig);
   }, [field, mediaConfig]);
 
@@ -255,28 +233,13 @@ const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputEl
     });
   }, [isMultiple, maxFiles]);
 
-  if (!mediaConfig) {
-    return (
-      <p className="text-muted-foreground bg-muted rounded-md px-3 py-2">
-      No media configuration found. {' '}
-      <a 
-        href={`/${config.owner}/${config.repo}/${encodeURIComponent(config.branch || "")}/settings`}
-        className="underline hover:text-foreground"
-      >
-        Check your settings
-      </a>.
-    </p>
-    );
-  }
-
   return (
     <MediaUpload
-      path={rootPath}
-      media={mediaConfig.name}
+      media={mediaConfig?.name}
       extensions={allowedExtensions || undefined}
       onUpload={handleUpload}
       multiple={isMultiple}
-      rename={options.rename ?? mediaConfig.rename}
+      rename={options.rename ?? mediaConfig?.rename}
       disabled={isReadonly}
     >
       <MediaUpload.DropZone>
@@ -298,8 +261,6 @@ const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputEl
                         key={file.id}
                         id={file.id}
                         file={file.path}
-                        config={config}
-                        media={mediaConfig.name}
                         onRemove={isReadonly ? undefined : () => handleRemove(file.id)}
                         readonly={isReadonly}
                       />
@@ -310,9 +271,9 @@ const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputEl
             ) : (
               <div className="aspect-square w-28 relative">
                 <div title={files[0].path}>
-                  <Thumbnail name={mediaConfig.name} path={files[0].path} className="rounded-md w-28 h-28"/>
+                  <Thumbnail path={files[0].path} className="rounded-md w-28 h-28"/>
                 </div>
-                <ImageTeaser file={files[0].path} config={config} onRemove={isReadonly ? undefined : () => handleRemove(files[0].id)} />
+                <ImageTeaser file={files[0].path} onRemove={isReadonly ? undefined : () => handleRemove(files[0].id)} />
               </div>
             )
           )}
@@ -325,9 +286,8 @@ const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputEl
                 </Button>
               </MediaUpload.Trigger>
               <MediaDialog
-                media={mediaConfig.name}
-                initialPath={rootPath}
-                maxSelected={remainingSlots}
+                media={mediaConfig?.name}
+                maxSelected={remainingSlots === Infinity ? undefined : remainingSlots}
                 extensions={allowedExtensions}
                 onSubmit={handleSelected}
               >

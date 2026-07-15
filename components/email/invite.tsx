@@ -15,18 +15,16 @@ import {
 } from "@react-email/components";
 import { emailTheme } from "@/components/email/theme";
 
+// Editor invite ("set your password" link) — repo-shaped props from the
+// GitHub era (repoName, invitedByUrl) are gone; there's only one site now.
 export const InviteEmailTemplate = ({
   email,
-  repoName,
   inviteUrl,
   invitedByName,
-  invitedByUrl,
 }: {
   email: string;
-  repoName: string;
   inviteUrl: string;
   invitedByName: string;
-  invitedByUrl: string;
 }) => {
   const baseUrl = process.env.BASE_URL
     ? process.env.BASE_URL
@@ -37,9 +35,7 @@ export const InviteEmailTemplate = ({
   return (
     <Html>
       <Head />
-      <Preview>
-        {invitedByName} invited you to &quot;{repoName}&quot;
-      </Preview>
+      <Preview>{invitedByName} invited you to edit Coze CMS</Preview>
       <Tailwind>
         <Body
           className="my-auto mx-auto font-sans px-2 antialiased"
@@ -54,7 +50,7 @@ export const InviteEmailTemplate = ({
                 src={`${baseUrl}/images/email-logo.png`}
                 width="42"
                 height="42"
-                alt="Pages CMS"
+                alt="Coze CMS"
                 className="my-0 mx-auto"
               />
             </Section>
@@ -62,21 +58,14 @@ export const InviteEmailTemplate = ({
               className="text-[24px] font-semibold p-0 my-[30px] mx-0 text-center tracking-tight"
               style={{ color: emailTheme.foreground }}
             >
-              Join &quot;{repoName}&quot; on Pages CMS
+              Join Coze CMS
             </Heading>
             <Text
               className="text-[16px] leading-[24px]"
               style={{ color: emailTheme.foreground }}
             >
-              <Link
-                href={invitedByUrl}
-                className="underline rounded-md"
-                style={{ color: emailTheme.link }}
-              >
-                {invitedByName}
-              </Link>{" "}
-              has invited you to the &quot;{repoName}&quot; project on Pages
-              CMS. Use the following link to start collaborating:
+              {invitedByName} has invited you to edit the Coze guest manual.
+              Use the following link to set your password and get started:
             </Text>
             <Section className="text-center mt-[24px] mb-[24px]">
               <Button
@@ -88,7 +77,7 @@ export const InviteEmailTemplate = ({
                   color: emailTheme.buttonForeground,
                 }}
               >
-                Join &quot;{repoName}&quot;
+                Set your password
               </Button>
             </Section>
             <Text
@@ -121,8 +110,8 @@ export const InviteEmailTemplate = ({
               >
                 {email}
               </Link>
-              . If you think this is a mistake, you can safely ignore this
-              email.
+              . If you weren&apos;t expecting this invitation, you can ignore
+              this email.
             </Text>
           </Container>
         </Body>
@@ -130,3 +119,5 @@ export const InviteEmailTemplate = ({
     </Html>
   );
 };
+
+export default InviteEmailTemplate;

@@ -181,4 +181,3 @@ CREATE INDEX "idx_action_run_owner_repo_actionName" ON "action_run" USING btree 
 CREATE INDEX "idx_action_run_owner_repo_status" ON "action_run" USING btree ("owner","repo","status");
 CREATE INDEX "idx_action_run_context" ON "action_run" USING btree ("owner","repo","context_type","context_name","context_path");
 CREATE UNIQUE INDEX "idx_action_run_workflowRunId" ON "action_run" USING btree ("workflow_run_id");
-ok

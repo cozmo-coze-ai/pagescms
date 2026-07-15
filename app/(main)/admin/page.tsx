@@ -9,11 +9,14 @@ import {
   cacheFileMetaTable,
   cacheFileTable,
   cachePermissionTable,
+  cmsEditorInviteTable,
   collaboratorTable,
   configTable,
   githubInstallationTokenTable,
   userTable,
 } from "@/db/schema";
+import { AdminEditorInvites } from "@/components/admin-editor-invites";
+import { getBaseUrl } from "@/lib/base-url";
 import { DocumentTitle } from "@/components/document-title";
 import { AdminConfirmActionButton } from "@/components/admin-confirm-action-button";
 import { AdminTimeAgo } from "@/components/admin-time-ago";
@@ -172,6 +175,21 @@ export default async function Page({
 
   const totalUserPages = Math.max(1, Math.ceil((filteredUserCount?.count ?? 0) / USERS_PER_PAGE));
   const safeCurrentPage = Math.min(currentPage, totalUserPages);
+
+  const editorInvites = (
+    await db
+      .select()
+      .from(cmsEditorInviteTable)
+      .orderBy(desc(cmsEditorInviteTable.createdAt))
+      .limit(50)
+  ).map((invite) => ({
+    id: invite.id,
+    email: invite.email,
+    inviteUrl: `${getBaseUrl()}/sign-up/invite/${invite.token}`,
+    expiresAt: invite.expiresAt.toISOString(),
+    acceptedAt: invite.acceptedAt?.toISOString() ?? null,
+    createdAt: invite.createdAt.toISOString(),
+  }));
 
   return (
     <MainRootLayout>
@@ -350,6 +368,18 @@ export default async function Page({
                   </PaginationContent>
                 </Pagination>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Editors</CardTitle>
+              <CardDescription>
+                Invite editors with a &quot;set your password&quot; link — sign-up is invite-only.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AdminEditorInvites invites={editorInvites} />
             </CardContent>
           </Card>
 

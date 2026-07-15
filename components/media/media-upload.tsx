@@ -1,10 +1,13 @@
 "use client";
 
+// Upload to Supabase Storage via /api/cms/media/[slug] (multipart) — the
+// slug comes from the /cms/itineraries/[slug] route. On the "new itinerary"
+// page there's no slug yet (media is stored per itinerary), so uploads are
+// rejected with a hint to save first.
+
 import { useRef, cloneElement, useMemo, useCallback, createContext, useContext, useState } from "react";
-import { useConfig } from "@/contexts/config-context";
-import { getUploadFileName, joinPathSegments } from "@/lib/utils/file";
+import { useParams } from "next/navigation";
 import { toast } from "sonner";
-import { getSchemaByName } from "@/lib/schema";
 import { cn } from "@/lib/utils";
 import { requireApiSuccess } from "@/lib/api-client";
 import type { FileSaveData } from "@/types/api";
@@ -38,59 +41,36 @@ interface MediaUploadDropZoneProps {
   className?: string;
 }
 
-function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple, rename, disabled = false }: MediaUploadProps) {
-  const { config } = useConfig();
-  if (!config) throw new Error(`Configuration not found.`);
+// Itinerary slug from the current /cms/itineraries/[slug] route, or null
+// outside of it (new itinerary, homepage).
+const useItinerarySlug = () => {
+  const params = useParams();
+  const slug = params?.slug;
+  return typeof slug === "string" ? decodeURIComponent(slug) : null;
+};
 
-  const configMedia = useMemo(() => 
-    media
-      ? getSchemaByName(config.object, media, "media")
-      : config.object.media[0],
-    [media, config.object]
-  );
+function MediaUploadRoot({ children, onUpload, extensions, multiple, disabled = false }: MediaUploadProps) {
+  const slug = useItinerarySlug();
 
   const accept = useMemo(() => {
-    if (!configMedia?.extensions && !extensions) return undefined;
-    
-    const allowedExtensions = extensions 
-      ? configMedia?.extensions
-        ? extensions.filter(ext => configMedia.extensions.includes(ext))
-        : extensions
-      : configMedia?.extensions;
-
-    return allowedExtensions?.length > 0
-      ? allowedExtensions.map((extension: string) => `.${extension}`).join(",")
-      : undefined;
-  }, [extensions, configMedia?.extensions]);
+    if (!extensions?.length) return undefined;
+    return extensions.map((extension: string) => `.${extension}`).join(",");
+  }, [extensions]);
 
   const handleFiles = useCallback(async (files: File[]) => {
+    if (!slug) {
+      toast.error("Save the itinerary first — photos are stored per itinerary.");
+      return;
+    }
     try {
       for (const file of files) {
-        const uploadFilename = getUploadFileName(
-          file.name,
-          rename ?? configMedia?.rename,
-        );
-
         const uploadPromise = (async () => {
-          const content = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const base64Content = (reader.result as string).replace(/^(.+,)/, "");
-              resolve(base64Content);
-            };
-            reader.onerror = () => reject(new Error("Failed to read file"));
-            reader.readAsDataURL(file);
-          });
+          const formData = new FormData();
+          formData.append("file", file);
 
-          const fullPath = joinPathSegments([path ?? "", uploadFilename]);
-          const response = await fetch(`/api/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/files/${encodeURIComponent(fullPath)}`, {
+          const response = await fetch(`/api/cms/media/${encodeURIComponent(slug)}`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "media",
-              name: configMedia.name,
-              content,
-            }),
+            body: formData,
           });
 
           const data = await requireApiSuccess<any>(
@@ -113,7 +93,7 @@ function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple
     } catch (error) {
       console.error(error);
     }
-  }, [config, path, configMedia?.name, configMedia?.rename, onUpload, rename]);
+  }, [slug, onUpload]);
 
   const contextValue = useMemo(() => ({
     handleFiles,
@@ -170,6 +150,7 @@ function MediaUploadTrigger({ children }: MediaUploadTriggerProps) {
     if (validFiles.length === 0) return;
 
     context.handleFiles(validFiles);
+    event.target.value = "";
   }, [context, filterAcceptedFiles]);
 
   return (
@@ -263,3 +244,5 @@ export const MediaUpload = Object.assign(MediaUploadRoot, {
   Trigger: MediaUploadTrigger,
   DropZone: MediaUploadDropZone,
 });
+
+export { useItinerarySlug };

@@ -1,108 +1,57 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
-import { emailOTP } from "better-auth/plugins";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { getBaseUrl } from "@/lib/base-url";
-import { repairLegacyGithubStubOnLogin } from "@/lib/github-legacy-stub-repair";
-import { sendEmail } from "@/lib/mailer";
-import { syncGithubProfileOnLogin } from "@/lib/github-account";
-import { bindCollaboratorInvitesToUser } from "@/lib/collaborator-access";
-import { LoginEmailTemplate } from "@/components/email/login";
-import { render } from "@react-email/render";
 
+// Email+password only — GitHub OAuth and email-OTP were removed once content
+// storage moved off GitHub (nothing needs a GitHub identity/token anymore),
+// and OTP added complexity with no remaining use case for this app's small,
+// flat editor-permission model.
 export const auth = betterAuth({
   baseURL: getBaseUrl(),
   secret: (process.env.AUTH_SECRET || process.env.BETTER_AUTH_SECRET) as string,
   emailAndPassword: {
     enabled: true,
   },
-  user: {
-    additionalFields: {
-      githubUsername: {
-        type: "string",
-        required: false,
-        input: false,
-      },
-    },
-  },
-  account: {
-    accountLinking: {
-      enabled: true,
-      trustedProviders: ["github"],
-      disableImplicitLinking: false,
-      updateUserInfoOnLink: true,
-      allowUnlinkingAll: false,
-    },
-  },
-  socialProviders: {
-    github: {
-      clientId: process.env.GITHUB_APP_CLIENT_ID as string,
-      clientSecret: process.env.GITHUB_APP_CLIENT_SECRET as string,
-      overrideUserInfoOnSignIn: false,
-      mapProfileToUser: (profile) => ({
-        name: profile.name ?? profile.login,
-        image: profile.avatar_url ?? null,
-        githubUsername: profile.login,
-      }),
-      scope: ["repo", "user:email"],
-      getUserInfo: async (token) => {
-        const profileResponse = await fetch("https://api.github.com/user", {
-          headers: {
-            "User-Agent": "better-auth",
-            Authorization: `Bearer ${token.accessToken}`,
-          },
+  hooks: {
+    // Sign-up is invite-only: this is an internal tool with flat permissions
+    // (any account can edit content), so the public email+password sign-up
+    // endpoint must not allow self-registration. The accept-invite server
+    // action (lib/actions/editor-invite.ts) passes the invite token via the
+    // x-invite-token header when it calls auth.api.signUpEmail.
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-up/email") return;
+
+      const token = ctx.headers?.get("x-invite-token") ?? "";
+      const body = (ctx.body ?? {}) as Record<string, unknown>;
+      const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+
+      const invite = token
+        ? (
+            await db
+              .select()
+              .from(schema.cmsEditorInviteTable)
+              .where(eq(schema.cmsEditorInviteTable.token, token))
+              .limit(1)
+          )[0]
+        : undefined;
+
+      const isValid =
+        invite &&
+        !invite.acceptedAt &&
+        invite.expiresAt.getTime() > Date.now() &&
+        invite.email.trim().toLowerCase() === email;
+
+      if (!isValid) {
+        throw new APIError("FORBIDDEN", {
+          message: "Sign-up is invite-only. Ask an admin for an invite link.",
         });
-
-        if (!profileResponse.ok) {
-          console.warn("[auth] github getUserInfo failed", {
-            status: profileResponse.status,
-            githubRequestId: profileResponse.headers.get("x-github-request-id"),
-            rateLimitRemaining: profileResponse.headers.get("x-ratelimit-remaining"),
-          });
-          return null;
-        }
-
-        const profile = await profileResponse.json();
-
-        let emails:
-          | Array<{ email: string; primary: boolean; verified: boolean; visibility: "public" | "private" }>
-          | undefined;
-        try {
-          const emailsResponse = await fetch("https://api.github.com/user/emails", {
-            headers: {
-              Authorization: `Bearer ${token.accessToken}`,
-              "User-Agent": "better-auth",
-            },
-          });
-          if (emailsResponse.ok) {
-            emails = await emailsResponse.json();
-          }
-        } catch {}
-
-        if (!profile.email && emails) {
-          profile.email = (emails.find((entry) => entry.primary) ?? emails[0])?.email as string;
-        }
-        const emailVerified = emails?.find((entry) => entry.email === profile.email)?.verified ?? false;
-
-        const userMap = {
-          name: profile.name ?? profile.login,
-          image: profile.avatar_url ?? null,
-          githubUsername: profile.login,
-        };
-
-        return {
-          user: {
-            id: profile.id,
-            email: profile.email,
-            emailVerified,
-            ...userMap,
-          },
-          data: profile,
-        };
-      },
-    },
+      }
+    }),
   },
   database: drizzleAdapter(db, {
     provider: "pg",
@@ -113,75 +62,5 @@ export const auth = betterAuth({
       verification: schema.verificationTable,
     },
   }),
-  databaseHooks: {
-    session: {
-      create: {
-        after: async (session) => {
-          try {
-            await repairLegacyGithubStubOnLogin(session.id, session.userId);
-          } catch (error) {
-            console.warn("[auth] legacy github stub repair failed", {
-              sessionId: session.id,
-              userId: session.userId,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
-
-          try {
-            await syncGithubProfileOnLogin(session.userId);
-          } catch (error) {
-            console.warn("[auth] github profile sync failed", {
-              sessionId: session.id,
-              userId: session.userId,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
-
-          try {
-            const user = await db.query.userTable.findFirst({
-              where: (table, { eq }) => eq(table.id, session.userId),
-            });
-            if (user) {
-              await bindCollaboratorInvitesToUser(user);
-            }
-          } catch (error) {
-            console.warn("[auth] collaborator invite binding failed", {
-              sessionId: session.id,
-              userId: session.userId,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
-
-        },
-      },
-    },
-  },
-  plugins: [
-    nextCookies(),
-    emailOTP({
-      expiresIn: 300,
-      otpLength: 6,
-      allowedAttempts: 5,
-      storeOTP: "encrypted",
-      resendStrategy: "reuse",
-      sendVerificationOTP: async ({ email, otp, type }) => {
-        if (type !== "sign-in") return;
-
-        const subject = `Your Pages CMS temporary code is ${otp}`;
-        const html = await render(
-          LoginEmailTemplate({
-            email,
-            otp,
-            preview: subject,
-          }),
-        );
-
-        await sendEmail({
-          to: email,
-          subject,
-          html,
-        });
-      },
-    }),
-  ],
+  plugins: [nextCookies()],
 });

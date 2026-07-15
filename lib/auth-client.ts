@@ -1,9 +1,8 @@
 import { createAuthClient } from "better-auth/react";
-import { emailOTPClient } from "better-auth/client/plugins";
 
-const authClient = createAuthClient({
-  plugins: [emailOTPClient()],
-});
+// Email+password only — the emailOTP client plugin went away with the
+// server-side OTP flow (see lib/auth.ts).
+const authClient = createAuthClient({});
 
-export const { emailOtp, signIn, signOut, useSession } = authClient;
+export const { signIn, signOut, useSession } = authClient;
 export { authClient };

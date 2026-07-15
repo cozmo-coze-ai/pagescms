@@ -25,10 +25,9 @@ import { Loader } from "lucide-react";
 type ProfileProps = {
   name?: string | null;
   email: string;
-  githubUsername?: string | null;
 };
 
-export function Profile({ name, email, githubUsername }: ProfileProps) {
+export function Profile({ name, email }: ProfileProps) {
   const router = useRouter();
   const [displayName, setDisplayName] = useState(name?.trim() || "");
   const [isSaving, setIsSaving] = useState(false);
@@ -100,11 +99,7 @@ export function Profile({ name, email, githubUsername }: ProfileProps) {
               <div className="col-span-3">
                 <Avatar className="h-24 w-24 rounded-md">
                   <AvatarImage
-                    src={
-                      githubUsername
-                        ? `https://github.com/${githubUsername}.png`
-                        : `https://unavatar.io/${email}?fallback=false`
-                    }
+                    src={`https://unavatar.io/${email}?fallback=false`}
                     alt={avatarLabel}
                   />
                   <AvatarFallback className="rounded-md">
