@@ -7,6 +7,7 @@ import { ArrowUpRight, Settings } from "lucide-react";
 import { SITE_URL } from "@/lib/cms-config";
 import { ConfigProvider } from "@/contexts/config-context";
 import { RepoProvider } from "@/contexts/repo-context";
+import { useUser } from "@/contexts/user-context";
 import { cmsConfig } from "@/lib/cms-config";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ import { cn } from "@/lib/utils";
  */
 export default function CmsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { user } = useUser();
 
   useEffect(() => {
     document.documentElement.classList.add("studio");
@@ -30,9 +32,9 @@ export default function CmsLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   const navItems = [
-    { href: "/cms", label: "Home", exact: true },
     { href: "/cms/itineraries", label: "Itineraries" },
     { href: "/cms/homepage", label: "Homepage" },
+    ...(user?.isAdmin ? [{ href: "/cms/team", label: "Team" }] : []),
   ];
 
   return (
@@ -51,7 +53,7 @@ export default function CmsLayout({ children }: { children: React.ReactNode }) {
           <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-sm">
             <nav className="mx-auto flex h-11 max-w-screen-xl items-center gap-5 px-4 md:px-6">
               <Link href="/cms" className="font-serif text-base tracking-tight">
-                Coze <span className="text-primary">CMS</span>
+                cms<span className="text-primary">.coze.care</span>
               </Link>
               <div className="flex items-center gap-4">
                 {navItems.map((item) => (
@@ -60,7 +62,7 @@ export default function CmsLayout({ children }: { children: React.ReactNode }) {
                     href={item.href}
                     className={cn(
                       "text-[13px] transition-colors hover:text-foreground",
-                      (item.exact ? pathname === item.href : pathname?.startsWith(item.href))
+                      pathname?.startsWith(item.href)
                         ? "font-medium text-foreground"
                         : "text-muted-foreground",
                     )}

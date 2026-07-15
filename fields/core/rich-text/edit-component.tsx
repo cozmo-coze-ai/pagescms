@@ -10,7 +10,8 @@ import {
 } from "react";
 import { useFormContext } from "react-hook-form";
 import { createPortal } from "react-dom";
-import { Code2, PencilLine } from "lucide-react";
+import { Code2, Eye, PencilLine } from "lucide-react";
+import { marked } from "marked";
 import { Editor, type ImagePickerContext } from "@/components/ui/editor";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -342,7 +343,9 @@ const EditComponent = forwardRef(
     const canonicalValue = typeof value === "string" ? value : "";
     const [labelSlotEl, setLabelSlotEl] = useState<HTMLElement | null>(null);
 
-    const [mode, setMode] = useState<"editor" | "source">("editor");
+    const [mode, setMode] = useState<"editor" | "source" | "preview">(
+      "editor",
+    );
     const [sourceValue, setSourceValue] = useState(canonicalValue);
     const [editorValue, setEditorValue] = useState(canonicalValue);
     const [isTransforming, setIsTransforming] = useState(false);
@@ -596,7 +599,9 @@ const EditComponent = forwardRef(
     }, [canonicalValue]);
 
     useEffect(() => {
-      if (mode !== "editor") return;
+      // Preview renders from editorValue too (it holds display-space image
+      // URLs), so keep it synced in both editor and preview modes.
+      if (mode === "source") return;
       if (skipNextSourceToEditorForCanonicalRef.current === canonicalValue) {
         skipNextSourceToEditorForCanonicalRef.current = null;
         return;
@@ -684,6 +689,20 @@ const EditComponent = forwardRef(
       }
     }, [mode, pendingUploads, syncEditorToSource]);
 
+    const handleSwitchToPreview = useCallback(async () => {
+      if (pendingUploads > 0) return;
+      if (mode === "preview") return;
+      if (mode === "editor") {
+        await syncEditorToSource();
+        // editorValue is already in display form — skip the redundant
+        // source→editor re-transform the mode change would trigger.
+        skipNextSourceToEditorForCanonicalRef.current = name
+          ? ((form.getValues(name) as string) ?? "")
+          : sourceValue;
+      }
+      setMode("preview");
+    }, [form, mode, name, pendingUploads, sourceValue, syncEditorToSource]);
+
     const resolvePendingImageSelection = useCallback(
       (result: { kind: "url"; src: string } | null) => {
         const pending = pendingImageSelectionRef.current;
@@ -751,6 +770,18 @@ const EditComponent = forwardRef(
       },
       [resolvePendingImageSelection, toDisplayImageUrl],
     );
+
+    // Same markdown→HTML pass the public site runs at build time, so the
+    // preview matches what coze.care renders (GFM, raw HTML allowed).
+    const previewHtml = useMemo(() => {
+      if (mode !== "preview" || !editorValue.trim()) return "";
+      if (format === "html") return editorValue;
+      try {
+        return marked.parse(editorValue, { gfm: true, async: false }) as string;
+      } catch {
+        return "";
+      }
+    }, [editorValue, format, mode]);
 
     const handleSourceChange = useCallback(
       (nextValue: string) => {
@@ -837,6 +868,16 @@ const EditComponent = forwardRef(
           <Code2 className="h-3 w-3" />
           {format === "html" ? "HTML" : "Markdown"}
         </button>
+        <button
+          type="button"
+          className={cn(triggerClass, mode === "preview" && activeTriggerClass)}
+          onClick={() => void handleSwitchToPreview()}
+          disabled={isTransforming || pendingUploads > 0}
+          data-active={mode === "preview" ? "true" : undefined}
+        >
+          <Eye className="h-3 w-3" />
+          Preview
+        </button>
       </div>
     );
 
@@ -883,6 +924,19 @@ const EditComponent = forwardRef(
               onPendingUploadsChange={setPendingUploads}
               disabled={isReadonly}
             />
+          )
+        ) : mode === "preview" ? (
+          isTransforming ? (
+            <Skeleton className="h-40 w-full rounded-md" />
+          ) : previewHtml ? (
+            <div
+              className="editor-preview"
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
+            />
+          ) : (
+            <p className="py-8 text-sm text-muted-foreground">
+              Nothing to preview yet — write some content first.
+            </p>
           )
         ) : (
           <Textarea

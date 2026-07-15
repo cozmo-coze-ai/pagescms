@@ -152,11 +152,14 @@ export function ItineraryEditor({
                   <div className="h-px bg-border" />
                   <div className="editor-field-slug">{f.slug}</div>
                   {f.category}
-                  <div className="grid grid-cols-2 gap-3">
+                  {/* editor-pair aligns the two selects and mutes their
+                      descriptions so the labels sit level (bento cell). */}
+                  <div className="editor-pair grid grid-cols-2 items-start gap-3">
                     {f.tag}
                     {f.tagColor}
                   </div>
-                  {f.cover}
+                  {/* editor-cover enlarges the preview to fill the rail. */}
+                  <div className="editor-cover">{f.cover}</div>
                 </section>
                 <div className="hidden lg:block">
                   <WritingKit />

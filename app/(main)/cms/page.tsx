@@ -7,12 +7,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowUpRight, ImageOff, Pencil, Plus } from "lucide-react";
+import { ArrowUpRight, ImageOff, Pencil, Plus, UserPlus } from "lucide-react";
 import { DocumentTitle } from "@/components/document-title";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mediaPublicUrl } from "@/lib/media-path";
 import { SITE_URL } from "@/lib/cms-config";
+import { useUser } from "@/contexts/user-context";
 import { cn } from "@/lib/utils";
 
 type ItinerarySummary = {
@@ -70,7 +71,15 @@ const ShelfCard = ({ item }: { item: ItinerarySummary }) => (
   </Link>
 );
 
-const Shelf = ({ title, items }: { title: string; items: ItinerarySummary[] }) => {
+const Shelf = ({
+  title,
+  items,
+  singleRow = false,
+}: {
+  title: string;
+  items: ItinerarySummary[];
+  singleRow?: boolean;
+}) => {
   if (items.length === 0) return null;
   return (
     <section className="space-y-1.5">
@@ -78,7 +87,14 @@ const Shelf = ({ title, items }: { title: string; items: ItinerarySummary[] }) =
         <h2 className="font-serif text-sm tracking-tight">{title}</h2>
         <span className="text-[11px] text-muted-foreground">{items.length}</span>
       </div>
-      <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1.5">
+      {/* Double-decker shelf: two rows fill column by column, scrolling
+          sideways together — twice the covers per screen. */}
+      <div
+        className={cn(
+          "-mx-1 grid snap-x grid-flow-col gap-2 overflow-x-auto px-1 pb-2",
+          !singleRow && items.length > 4 ? "grid-rows-2" : "grid-rows-1",
+        )}
+      >
         {items.map((item) => (
           <ShelfCard key={item.slug} item={item} />
         ))}
@@ -88,6 +104,7 @@ const Shelf = ({ title, items }: { title: string; items: ItinerarySummary[] }) =
 };
 
 export default function CmsHomePage() {
+  const { user } = useUser();
   const [items, setItems] = useState<ItinerarySummary[] | null>(null);
 
   useEffect(() => {
@@ -106,7 +123,7 @@ export default function CmsHomePage() {
   const shelves = useMemo(() => {
     if (!items) return null;
     return {
-      recent: items.slice(0, 12),
+      recent: items.slice(0, 5),
       tours: items.filter((item) => item.published && item.category === "tour"),
       experiences: items.filter((item) => item.published && item.category === "experience"),
       drafts: items.filter((item) => !item.published),
@@ -122,7 +139,7 @@ export default function CmsHomePage() {
           <h1 className="font-serif text-xl tracking-tight">{greeting()}</h1>
           {items && (
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {items.length} itineraries · {items.filter((item) => item.published).length} live on coze.care
+              {items.length} itineraries · {items.filter((item) => item.published).length} published
             </p>
           )}
         </div>
@@ -139,6 +156,14 @@ export default function CmsHomePage() {
               Edit homepage
             </Link>
           </Button>
+          {user?.isAdmin && (
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link href="/cms/team">
+                <UserPlus className="h-3.5 w-3.5" />
+                Invite editors
+              </Link>
+            </Button>
+          )}
           <Button asChild variant="outline" size="sm" className="gap-1">
             <a href={SITE_URL} target="_blank" rel="noopener noreferrer">
               View site
@@ -177,7 +202,7 @@ export default function CmsHomePage() {
       ) : (
         <div className="space-y-6">
           <Shelf title="Drafts" items={shelves!.drafts} />
-          <Shelf title="Recently edited" items={shelves!.recent} />
+          <Shelf title="Recently edited" items={shelves!.recent} singleRow />
           <Shelf title="Tours" items={shelves!.tours} />
           <Shelf title="Experiences" items={shelves!.experiences} />
         </div>
