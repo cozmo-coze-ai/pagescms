@@ -7,6 +7,7 @@
 
 import { useRef, cloneElement, useMemo, useCallback, createContext, useContext, useState } from "react";
 import { useParams } from "next/navigation";
+import { useFormContext } from "react-hook-form";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { requireApiSuccess } from "@/lib/api-client";
@@ -41,12 +42,24 @@ interface MediaUploadDropZoneProps {
   className?: string;
 }
 
-// Itinerary slug from the current /cms/itineraries/[slug] route, or null
-// outside of it (new itinerary, homepage).
+// Must match cms-config's slug field pattern.
+const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+// Itinerary slug for media storage. On /cms/itineraries/[slug] the route
+// param wins (uploads target the *saved* slug's folder; a slug-field edit
+// only moves the folder on save, via the rename flow). On the "new" page
+// there's no route param yet, so fall back to the slug the editor has typed
+// into the form — valid values only, so uploads can start before first save.
 const useItinerarySlug = () => {
   const params = useParams();
-  const slug = params?.slug;
-  return typeof slug === "string" ? decodeURIComponent(slug) : null;
+  const routeSlug = params?.slug;
+  // EntryForm wraps every field in a FormProvider; null outside a form.
+  const form = useFormContext();
+  const formSlug = form ? form.watch("slug") : undefined;
+
+  if (typeof routeSlug === "string") return decodeURIComponent(routeSlug);
+  if (typeof formSlug === "string" && SLUG_REGEX.test(formSlug)) return formSlug;
+  return null;
 };
 
 function MediaUploadRoot({ children, onUpload, extensions, multiple, disabled = false }: MediaUploadProps) {
@@ -59,7 +72,7 @@ function MediaUploadRoot({ children, onUpload, extensions, multiple, disabled = 
 
   const handleFiles = useCallback(async (files: File[]) => {
     if (!slug) {
-      toast.error("Save the itinerary first — photos are stored per itinerary.");
+      toast.error("Enter the URL slug first — photos are stored per itinerary.");
       return;
     }
     try {

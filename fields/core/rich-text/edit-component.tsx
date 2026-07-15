@@ -10,7 +10,6 @@ import {
 } from "react";
 import { useFormContext } from "react-hook-form";
 import { createPortal } from "react-dom";
-import { useParams } from "next/navigation";
 import { Editor, type ImagePickerContext } from "@/components/ui/editor";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,6 +18,7 @@ import {
   MediaDialog,
   type MediaDialogHandle,
 } from "@/components/media/media-dialog";
+import { useItinerarySlug } from "@/components/media/media-upload";
 import { useConfig } from "@/contexts/config-context";
 import { useRepo } from "@/contexts/repo-context";
 import { getSchemaByName } from "@/lib/schema";
@@ -330,10 +330,9 @@ const EditComponent = forwardRef(
     } = props;
     void ref;
     const form = useFormContext();
-    // Itinerary slug from the /cms/itineraries/[slug] route — inline images
-    // are stored per itinerary; null on pages without one (new, homepage).
-    const params = useParams();
-    const slug = typeof params?.slug === "string" ? decodeURIComponent(params.slug) : null;
+    // Itinerary slug for per-itinerary media storage (route param, or the
+    // typed slug field on the "new" page — see useItinerarySlug).
+    const slug = useItinerarySlug();
 
     const options = field?.options ?? {};
     const isReadonly = Boolean(field?.readonly);

@@ -9,7 +9,7 @@
  * files to Postgres rows.
  */
 
-import { eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { cmsItineraryTable, cmsHomepageContentTable, cmsDeployTriggerTable } from "@/db/schema";
 import { cmsConfig } from "@/lib/cms-config";
@@ -57,6 +57,8 @@ type ItinerarySummary = {
   title: string;
   category: string;
   tag: string | null;
+  tagColor: string | null;
+  coverPath: string | null;
   published: boolean;
   updatedAt: Date;
 };
@@ -110,11 +112,15 @@ const listItineraries = async (): Promise<ItinerarySummary[]> => {
       title: cmsItineraryTable.title,
       category: cmsItineraryTable.category,
       tag: cmsItineraryTable.tag,
+      tagColor: cmsItineraryTable.tagColor,
+      coverPath: cmsItineraryTable.coverPath,
       published: cmsItineraryTable.published,
       updatedAt: cmsItineraryTable.updatedAt,
     })
     .from(cmsItineraryTable)
-    .orderBy(cmsItineraryTable.title);
+    // Most recently touched first — the list mirrors what the team is
+    // actually working on (the wall view features the top item).
+    .orderBy(desc(cmsItineraryTable.updatedAt));
   return rows;
 };
 

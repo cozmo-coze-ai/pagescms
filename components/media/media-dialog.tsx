@@ -181,7 +181,7 @@ const MediaDialog = forwardRef(({
           <DialogDescription>
             {slug
               ? "Pick from this itinerary's photos or upload new ones."
-              : "Save the itinerary first — photos are stored per itinerary."}
+              : "Enter the URL slug first — photos are stored per itinerary."}
           </DialogDescription>
         </DialogHeader>
 

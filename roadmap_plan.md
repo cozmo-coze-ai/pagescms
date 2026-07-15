@@ -154,6 +154,19 @@ deployed.
       stats). Harmless to leave for now (unused, no broken imports), but `admin/page.tsx` should
       be simplified and this migration written before calling the cutover fully done.
 
+### Studio UI (2026-07-15)
+- [x] `/cms` redesigned as **Coze Studio** — wears the public site's identity (paper/ink/
+      curator-gold palette, Lora + Inter, identical frosted status pills and hover-lift card
+      physics, mapped onto shadcn tokens via a `.studio` class on `<html>` so portaled dialogs
+      inherit it; deliberately light-only like the site). Itineraries = "collection wall":
+      bento cover-photo grid, most-recently-updated piece featured 2x2, drafts dimmed with a
+      clay Draft pill, compact list toggle (persisted), search, per-card menu with
+      AlertDialog delete (replaced window.confirm). Editor pages get studio chrome (back
+      link, Lora title, status pill, View-on-site, Save in header) + the **Writing kit**:
+      copyable ChatGPT prompt recipes encoding the real house markdown style (sampled from
+      published bodies) for draft/polish/title workflows. List API now returns
+      coverPath/tagColor, ordered by updatedAt desc.
+
 ### One-time data migration
 - [x] `pagescms/scripts/migrate-content-to-supabase.mjs` — written and **dry-run verified against
       the real cached `coze_cms` checkout**: found 32 itinerary markdown files, 453 media files

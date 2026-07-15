@@ -9,6 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);
+  --font-serif: var(--font-lora);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -123,4 +124,100 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+
+/* ---------------------------------------------------------------------------
+ * Coze Studio theme — the /cms editor wears the public site's identity
+ * (coze_client/src/styles/global.css: paper, ink, curator gold, Lora).
+ * Applied as a class on <html> by app/(main)/cms/layout.tsx so portaled
+ * dialogs/menus inherit it too. Maps the shadcn semantic tokens, so every
+ * existing component adopts the look without per-component changes.
+ * ------------------------------------------------------------------------ */
+.studio {
+  color-scheme: light;
+
+  --background: #f9f8f4;           /* paper */
+  --foreground: #201c17;           /* ink */
+  --card: #ffffff;                 /* surface */
+  --card-foreground: #201c17;
+  --popover: #ffffff;
+  --popover-foreground: #201c17;
+  --primary: #a97a2c;              /* curator gold */
+  --primary-foreground: #ffffff;
+  --secondary: #f1eee6;            /* surface-sunken */
+  --secondary-foreground: #201c17;
+  --muted: #f1eee6;
+  --muted-foreground: #6b6258;     /* ink-soft */
+  --accent: #f1eee6;
+  --accent-foreground: #201c17;
+  --border: #e6e2d8;               /* line */
+  --input: #e6e2d8;
+  --ring: #a97a2c;
+  --radius: 0.75rem;
+
+  /* studio-only accents (site's tag palette) */
+  --studio-ink-soft: #6b6258;
+  --studio-ink-faint: #a39a8d;
+  --studio-gold: #a97a2c;
+  --studio-gold-deep: #7d5a1f;
+  --studio-gold-soft: #f1e2bf;
+  --studio-clay: #ab5138;
+  --studio-sage: #52704f;
+  --studio-sky: #3f6478;
+  --studio-plum: #78486f;
+  --studio-shadow-lift: 0 16px 30px -16px rgba(32, 28, 23, 0.28), 0 3px 8px -3px rgba(32, 28, 23, 0.1);
+  --studio-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Frosted status pill, identical to the site's .status-badge. */
+.studio-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 21px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(6px);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--studio-gold-deep); /* red/yellow/orange/default */
+}
+.studio-pill::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.studio-pill-gray { color: var(--studio-ink-soft); }
+.studio-pill-brown, .studio-pill-pink { color: var(--studio-clay); }
+.studio-pill-green { color: var(--studio-sage); }
+.studio-pill-blue { color: var(--studio-sky); }
+.studio-pill-purple { color: var(--studio-plum); }
+
+/* The site's card physics. */
+.studio-lift {
+  transition: transform 220ms var(--studio-ease), box-shadow 220ms var(--studio-ease), border-color 220ms var(--studio-ease);
+}
+.studio-lift:hover, .studio-lift:focus-visible, .studio-lift:focus-within {
+  transform: translateY(-2px);
+  border-color: transparent;
+  box-shadow: var(--studio-shadow-lift);
+}
+
+/* Single orchestrated moment: the wall rises once on load. */
+@keyframes studio-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.studio-rise {
+  animation: studio-rise 480ms var(--studio-ease) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-rise { animation: none; }
+  .studio-lift, .studio-lift:hover { transition: none; transform: none; }
 }

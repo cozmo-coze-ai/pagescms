@@ -118,4 +118,7 @@ const cmsConfig = {
   ] as Array<Record<string, any>>,
 };
 
-export { cmsConfig };
+// Public site this CMS feeds — used for "view on site" links in the editor.
+const SITE_URL = "https://www.coze.care";
+
+export { cmsConfig, SITE_URL };
