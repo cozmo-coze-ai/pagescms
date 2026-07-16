@@ -258,6 +258,18 @@
 }
 
 /* Single orchestrated moment: the wall rises once on load. */
+/* Sliding fill for indeterminate progress (deploy queued, saving). */
+@keyframes studio-indeterminate {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(420%); }
+}
+.studio-indeterminate {
+  animation: studio-indeterminate 1.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-indeterminate { animation-duration: 2.4s; }
+}
+
 @keyframes studio-rise {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }

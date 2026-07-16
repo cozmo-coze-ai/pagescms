@@ -17,6 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 import { DocumentTitle } from "@/components/document-title";
+import { DeployStatus } from "@/components/cms/deploy-status";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mediaPublicUrl } from "@/lib/media-path";
@@ -279,6 +280,8 @@ export default function CmsDashboardPage() {
             </section>
 
             <div className="space-y-4">
+              <DeployStatus />
+
               <section className="rounded-xl border border-border bg-card pb-2">
                 <SectionHeader icon={Zap} title="Quick actions" />
                 <div className="mt-1.5 space-y-0.5 border-t border-border px-1 pt-1.5">

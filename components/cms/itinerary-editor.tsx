@@ -14,6 +14,7 @@ import slugify from "slugify";
 import { ArrowLeft, ArrowUpRight, Loader2, Settings2 } from "lucide-react";
 import { EntryForm } from "@/components/entry/entry-form";
 import { WritingKit } from "@/components/cms/writing-kit";
+import { DeployStatus, DEPLOY_STATUS_REFRESH_EVENT } from "@/components/cms/deploy-status";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cmsConfig } from "@/lib/cms-config";
@@ -75,6 +76,9 @@ export function ItineraryEditor({
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
+      // Saves mark the site dirty — flip the deploy widgets to "queued"
+      // immediately instead of waiting for their next poll.
+      window.dispatchEvent(new Event(DEPLOY_STATUS_REFRESH_EVENT));
     }
   };
 
@@ -104,7 +108,7 @@ export function ItineraryEditor({
   return (
     <div>
       <div className="sticky top-0 z-30 -mx-4 -mt-4 mb-6 border-b border-border/70 bg-background/85 backdrop-blur-md md:-mx-8 md:-mt-6">
-        <div className="flex h-12 items-center gap-3 px-4 md:px-8">
+        <div className="relative flex h-12 items-center gap-3 px-4 md:px-8">
           <Link
             href="/cms/itineraries"
             className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -114,6 +118,7 @@ export function ItineraryEditor({
           </Link>
           {statusPill}
           <div className="ml-auto flex items-center gap-2.5">
+            <DeployStatus variant="compact" className="hidden lg:flex" />
             {isSaving ? (
               <span className="hidden text-xs text-muted-foreground sm:block">Saving…</span>
             ) : isDirty ? (
@@ -148,6 +153,12 @@ export function ItineraryEditor({
               </kbd>
             </Button>
           </div>
+          {/* Save-in-flight feedback: thin sliding bar along the toolbar. */}
+          {isSaving && (
+            <div className="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden">
+              <div className="studio-indeterminate h-full w-1/3 bg-primary" />
+            </div>
+          )}
         </div>
       </div>
 

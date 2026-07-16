@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowUpRight } from "lucide-react";
 import { DocumentTitle } from "@/components/document-title";
+import { DEPLOY_STATUS_REFRESH_EVENT } from "@/components/cms/deploy-status";
 import { EntryForm } from "@/components/entry/entry-form";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,6 +40,7 @@ export default function HomepagePage() {
     }
     toast.success("Saved.");
     setContentObject(json.data.contentObject);
+    window.dispatchEvent(new Event(DEPLOY_STATUS_REFRESH_EVENT));
   };
 
   return (
