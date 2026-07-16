@@ -32,20 +32,27 @@ export default async function AcceptInvitePage({
       ? "This invite link has expired. Ask an admin for a new one."
       : null;
 
+  // Same studio-themed shell as the sign-in page (components/sign-in.tsx).
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="space-y-2 text-center">
-          <h1 className="text-xl font-semibold tracking-tight">Join Coze CMS</h1>
+    <div className="studio flex min-h-screen items-center justify-center bg-background p-4 text-foreground md:p-6">
+      <div className="w-full sm:max-w-[360px]">
+        <div className="mb-6 text-center">
+          <h1 className="font-serif text-2xl tracking-tight">
+            Join Coze <span className="text-primary">CMS</span>
+          </h1>
           {problem ? (
-            <p className="text-sm text-muted-foreground">{problem}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{problem}</p>
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground">
               Set a password for <span className="font-medium text-foreground">{invite.email}</span> to start editing.
             </p>
           )}
         </div>
-        {!problem && <AcceptInviteForm token={token} />}
+        {!problem && (
+          <div className="rounded-xl border border-border bg-card p-6">
+            <AcceptInviteForm token={token} />
+          </div>
+        )}
       </div>
     </div>
   );
