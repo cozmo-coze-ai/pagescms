@@ -121,6 +121,13 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    /* Reserve the page scrollbar's gutter permanently. Otherwise content
+     * that crosses the one-screen threshold (e.g. switching the editor
+     * between Write and Source) toggles the scrollbar on/off, changing the
+     * viewport width and making the whole layout blink sideways. */
+    scrollbar-gutter: stable;
+  }
   body {
     @apply bg-background text-foreground;
   }
@@ -331,6 +338,26 @@
   background: transparent;
   box-shadow: none;
   padding: 4px 0 64px;
+  /* Never let wide content (tables with long URLs, oversized embeds) bleed
+   * sideways out of the document card and under the settings rail. */
+  overflow-x: clip;
+}
+
+/* Write, Source, Preview and the transform skeleton all keep the canvas's
+ * 60vh floor, so flipping modes doesn't collapse the column and make the
+ * whole page jump for a frame. */
+.editor-doc textarea,
+.editor-doc .editor-preview,
+.editor-doc [data-slot="skeleton"] {
+  min-height: 60vh;
+}
+
+/* Source view grows with the markdown (like the Write canvas does with the
+ * document) instead of trapping it in a fixed-height scrollbox — keeps the
+ * column height steady across mode switches. Falls back to the 60vh floor
+ * where `field-sizing` isn't supported yet. */
+.editor-doc textarea {
+  field-sizing: content;
 }
 .editor-doc .cn-editor .tiptap:focus-visible,
 .editor-doc .cn-editor .tiptap:focus-within {
@@ -492,6 +519,14 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* In the Write canvas, wide tables scroll inside Tiptap's own wrapper div
+ * instead of overflowing the document card. */
+.editor-doc .cn-editor .tiptap .tableWrapper {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .editor-preview th,
 .editor-preview td,
 .editor-doc .cn-editor .tiptap th,
@@ -499,6 +534,8 @@
   padding: 8px 12px;
   border: 1px solid var(--border);
   text-align: left;
+  /* Long pasted URLs shouldn't dictate the table's minimum width. */
+  overflow-wrap: anywhere;
 }
 
 .editor-preview th,

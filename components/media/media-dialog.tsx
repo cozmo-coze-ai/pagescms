@@ -125,17 +125,24 @@ const MediaDialog = forwardRef(({
           return data.data as MediaItem;
         })();
 
-        await toast.promise(uploadPromise, {
+        // toast.promise returns a toast handle, not the upload promise —
+        // await the upload itself, then show the new photo in the grid
+        // immediately (the POST response carries the full item).
+        toast.promise(uploadPromise, {
           loading: `Uploading ${file.name}`,
-          success: (item) => {
-            toggleSelected(item.path);
-            return `Uploaded ${file.name}`;
-          },
+          success: `Uploaded ${file.name}`,
           error: (error: unknown) => error instanceof Error ? error.message : "Upload failed",
         });
+        try {
+          const item = await uploadPromise;
+          setItems((prev) =>
+            prev ? [item, ...prev.filter((i) => i.path !== item.path)] : [item],
+          );
+          toggleSelected(item.path);
+        } catch {
+          // toast.promise already surfaced the error; keep uploading the rest.
+        }
       }
-    } catch (error) {
-      console.error(error);
     } finally {
       setIsUploading(false);
       fetchItems();

@@ -21,7 +21,7 @@ export default async function Layout({
 
   const userWithAdmin = {
     ...session.user,
-    isAdmin: hasAdminAccess(session.user as User),
+    isAdmin: await hasAdminAccess(session.user as User),
   };
 
   return (

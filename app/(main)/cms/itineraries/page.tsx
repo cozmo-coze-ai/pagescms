@@ -54,6 +54,7 @@ type ItinerarySummary = {
 };
 
 type ViewMode = "wall" | "list";
+type StatusFilter = "all" | "published" | "draft";
 
 // Same mapping as the site's "curator tag palette".
 const pillClass = (color: string | null) => {
@@ -139,6 +140,7 @@ export default function ItinerariesListPage() {
   const [items, setItems] = useState<ItinerarySummary[] | null>(null);
   const [view, setView] = useState<ViewMode>("wall");
   const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<StatusFilter>("all");
   const [pendingDelete, setPendingDelete] = useState<ItinerarySummary | null>(null);
 
   useEffect(() => {
@@ -168,12 +170,14 @@ export default function ItinerariesListPage() {
   const filtered = useMemo(() => {
     if (!items) return null;
     const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((item) =>
-      [item.title, item.slug, item.tag ?? "", item.category]
-        .some((value) => value.toLowerCase().includes(q)),
-    );
-  }, [items, query]);
+    return items.filter((item) => {
+      if (status === "published" && !item.published) return false;
+      if (status === "draft" && item.published) return false;
+      if (!q) return true;
+      return [item.title, item.slug, item.tag ?? "", item.category]
+        .some((value) => value.toLowerCase().includes(q));
+    });
+  }, [items, query, status]);
 
   const publishedCount = items?.filter((item) => item.published).length ?? 0;
   const draftCount = (items?.length ?? 0) - publishedCount;
@@ -193,7 +197,7 @@ export default function ItinerariesListPage() {
   };
 
   // Featured 2x2 slot only when the wall shows the full, unfiltered set.
-  const showFeatured = view === "wall" && !query.trim();
+  const showFeatured = view === "wall" && !query.trim() && status === "all";
 
   return (
     <div className="space-y-4">
@@ -208,7 +212,27 @@ export default function ItinerariesListPage() {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-md border border-border p-0.5">
+            {(
+              [
+                { value: "all", label: "All" },
+                { value: "published", label: "Published" },
+                { value: "draft", label: "Drafts" },
+              ] as const
+            ).map((option) => (
+              <Button
+                key={option.value}
+                type="button"
+                variant={status === option.value ? "secondary" : "ghost"}
+                size="xs"
+                onClick={() => setStatus(option.value)}
+                aria-pressed={status === option.value}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -261,6 +285,10 @@ export default function ItinerariesListPage() {
         <div className="rounded-lg border border-dashed border-border py-12 text-center">
           {query.trim() ? (
             <p className="text-sm text-muted-foreground">No itineraries match “{query.trim()}”.</p>
+          ) : status !== "all" ? (
+            <p className="text-sm text-muted-foreground">
+              No {status === "draft" ? "drafts" : "published itineraries"} right now.
+            </p>
           ) : (
             <>
               <p className="font-serif text-lg">Start the collection</p>

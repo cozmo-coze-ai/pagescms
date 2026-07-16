@@ -5,11 +5,19 @@ import { toast } from "sonner";
 import { Copy, Loader, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createEditorInvite, revokeEditorInvite } from "@/lib/actions/editor-invite";
 
 type InviteRow = {
   id: number;
   email: string;
+  role: string;
   inviteUrl: string;
   expiresAt: string;
   acceptedAt: string | null;
@@ -24,6 +32,7 @@ const statusFor = (invite: InviteRow) => {
 
 export function AdminEditorInvites({ invites }: { invites: InviteRow[] }) {
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState("editor");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastInviteUrl, setLastInviteUrl] = useState<string | null>(null);
 
@@ -33,7 +42,7 @@ export function AdminEditorInvites({ invites }: { invites: InviteRow[] }) {
 
     setIsSubmitting(true);
     try {
-      const result = await createEditorInvite(email);
+      const result = await createEditorInvite(email, role);
       if ("error" in result && result.error) {
         toast.error(result.error);
         return;
@@ -41,6 +50,7 @@ export function AdminEditorInvites({ invites }: { invites: InviteRow[] }) {
       if ("inviteUrl" in result && result.inviteUrl) {
         setLastInviteUrl(result.inviteUrl);
         setEmail("");
+        setRole("editor");
         toast.success(
           result.emailSent
             ? "Invite created and emailed."
@@ -73,6 +83,15 @@ export function AdminEditorInvites({ invites }: { invites: InviteRow[] }) {
           onChange={(event) => setEmail(event.target.value)}
           disabled={isSubmitting}
         />
+        <Select value={role} onValueChange={setRole} disabled={isSubmitting}>
+          <SelectTrigger className="w-28 shrink-0" aria-label="Role">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="editor">Editor</SelectItem>
+            <SelectItem value="admin">Admin</SelectItem>
+          </SelectContent>
+        </Select>
         <Button type="submit" className="gap-2 shrink-0" disabled={isSubmitting || !email.trim()}>
           {isSubmitting && <Loader className="h-4 w-4 animate-spin" />}
           Invite
@@ -103,6 +122,7 @@ export function AdminEditorInvites({ invites }: { invites: InviteRow[] }) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm truncate">{invite.email}</p>
                   <p className="text-xs text-muted-foreground">
+                    {invite.role === "admin" ? "Admin · " : ""}
                     {status === "accepted"
                       ? `Accepted ${new Date(invite.acceptedAt!).toLocaleDateString()}`
                       : status === "expired"

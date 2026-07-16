@@ -17,7 +17,7 @@ import { eq, sql } from "drizzle-orm";
 import { render } from "@react-email/components";
 import { db } from "@/db";
 import { cmsEditorInviteTable, userTable } from "@/db/schema";
-import { requireAdminSession } from "@/lib/admin";
+import { isCollaboratorRole, requireAdminSession } from "@/lib/admin";
 import { auth } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/base-url";
 import { sendEmail } from "@/lib/mailer";
@@ -29,12 +29,15 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const inviteUrlFor = (token: string) => `${getBaseUrl()}/sign-up/invite/${token}`;
 
-const createEditorInvite = async (email: string) => {
+const createEditorInvite = async (email: string, role: string = "editor") => {
   const { user } = await requireAdminSession();
 
   const normalizedEmail = email.trim().toLowerCase();
   if (!EMAIL_REGEX.test(normalizedEmail)) {
     return { error: "Enter a valid email address." };
+  }
+  if (!isCollaboratorRole(role)) {
+    return { error: "Unknown role." };
   }
 
   const existingUser = await db
@@ -57,6 +60,7 @@ const createEditorInvite = async (email: string) => {
   await db.insert(cmsEditorInviteTable).values({
     token,
     email: normalizedEmail,
+    role,
     invitedBy: user.id,
     expiresAt,
   });
@@ -138,6 +142,15 @@ const acceptEditorInvite = async (token: string, name: string, password: string)
         ? error.message
         : "Could not create your account.",
     };
+  }
+
+  // Grant the role the invite carries ("admin" | "editor"); accounts are
+  // created with the "editor" default by better-auth.
+  if (invite.role !== "editor") {
+    await db
+      .update(userTable)
+      .set({ role: invite.role, updatedAt: new Date() })
+      .where(sql`lower(${userTable.email}) = ${invite.email.trim().toLowerCase()}`);
   }
 
   await db

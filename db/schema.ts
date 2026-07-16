@@ -20,6 +20,10 @@ const userTable = pgTable("user", {
   githubUsername: text("github_username"),
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull().default(false),
+  // "admin" | "editor". Admins manage collaborators/settings; emails listed
+  // in ADMIN_EMAILS are bootstrap admins regardless of this column (so the
+  // owners can never be locked out from the UI).
+  role: text("role").notNull().default("editor"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
 });
@@ -248,6 +252,8 @@ const cmsEditorInviteTable = pgTable("cms_editor_invite", {
   id: serial("id").primaryKey(),
   token: text("token").notNull(),
   email: text("email").notNull(),
+  // Role granted on accept: "admin" | "editor".
+  role: text("role").notNull().default("editor"),
   invitedBy: text("invited_by"),
   expiresAt: timestamp("expires_at").notNull(),
   acceptedAt: timestamp("accepted_at"),

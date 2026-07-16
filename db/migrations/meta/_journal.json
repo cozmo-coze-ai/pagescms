@@ -120,6 +120,13 @@
       "when": 1784111520591,
       "tag": "0016_ancient_doctor_spectrum",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1784170246668,
+      "tag": "0017_perpetual_riptide",
+      "breakpoints": true
     }
   ]
 }

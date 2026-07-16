@@ -29,7 +29,7 @@ export default function NewItineraryPage() {
       <ItineraryEditor
         onSubmit={handleSubmit}
         saveLabel="Create itinerary"
-        hint="Type the URL slug early — photo uploads need it."
+        hint="The slug fills in from the title — photo uploads need it."
       />
     </>
   );

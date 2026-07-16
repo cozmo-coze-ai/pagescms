@@ -9,6 +9,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useFormContext } from "react-hook-form";
+import slugify from "slugify";
 import { ArrowLeft, ArrowUpRight, Loader2, Settings2 } from "lucide-react";
 import { EntryForm } from "@/components/entry/entry-form";
 import { WritingKit } from "@/components/cms/writing-kit";
@@ -22,6 +24,26 @@ const itineraryFields = cmsConfig.content.find((item) => item.name === "itinerar
 
 const GRID = "grid gap-10 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]";
 const CANVAS = "min-w-0 lg:mx-auto lg:w-full lg:max-w-3xl";
+
+// New itineraries only: keep the slug in sync with the title until the
+// author edits the slug by hand (then their version wins). Rendered inside
+// EntryForm so it can reach the react-hook-form context.
+const AutoSlug = () => {
+  const { watch, setValue, getValues } = useFormContext();
+  const title = watch("title");
+  const lastAutoSlug = useRef<string>("");
+
+  useEffect(() => {
+    const current = (getValues("slug") as string | undefined) ?? "";
+    if (current !== "" && current !== lastAutoSlug.current) return;
+    const auto = slugify(String(title ?? ""), { lower: true, strict: true });
+    if (auto === current) return;
+    lastAutoSlug.current = auto;
+    setValue("slug", auto, { shouldDirty: true });
+  }, [title, getValues, setValue]);
+
+  return null;
+};
 
 export function ItineraryEditor({
   contentObject,
@@ -81,8 +103,8 @@ export function ItineraryEditor({
 
   return (
     <div>
-      <div className="sticky top-11 z-30 -mx-4 -mt-4 mb-6 border-b border-border/70 bg-background/85 backdrop-blur-md md:-mx-6 md:-mt-6">
-        <div className="flex h-12 items-center gap-3 px-4 md:px-6">
+      <div className="sticky top-0 z-30 -mx-4 -mt-4 mb-6 border-b border-border/70 bg-background/85 backdrop-blur-md md:-mx-8 md:-mt-6">
+        <div className="flex h-12 items-center gap-3 px-4 md:px-8">
           <Link
             href="/cms/itineraries"
             className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -139,8 +161,12 @@ export function ItineraryEditor({
           onDirtyChange={setIsDirty}
           layout={(f) => (
             <div className={GRID}>
+              {!contentObject && <AutoSlug />}
               {/* On mobile the settings rail stacks above the document. */}
-              <aside className="order-1 min-w-0 space-y-5 lg:order-none lg:sticky lg:top-[6.75rem] lg:max-h-[calc(100dvh-7.75rem)] lg:self-start lg:overflow-y-auto lg:pb-4 lg:col-start-2 lg:row-start-1">
+              {/* z-10: the document's ProseMirror root is position:relative
+                  and later in paint order — keep the rail above it so any
+                  overflowing content slides under the cards, not through. */}
+              <aside className="order-1 min-w-0 space-y-5 lg:order-none lg:sticky lg:top-16 lg:z-10 lg:max-h-[calc(100dvh-5rem)] lg:self-start lg:overflow-y-auto lg:pb-4 lg:col-start-2 lg:row-start-1">
                 <section className="editor-settings space-y-4 rounded-xl border border-border bg-card p-4">
                   <header className="flex items-center gap-1.5 text-muted-foreground">
                     <Settings2 className="h-3.5 w-3.5" />

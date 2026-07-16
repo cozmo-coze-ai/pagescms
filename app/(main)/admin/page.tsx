@@ -185,6 +185,7 @@ export default async function Page({
   ).map((invite) => ({
     id: invite.id,
     email: invite.email,
+    role: invite.role,
     inviteUrl: `${getBaseUrl()}/sign-up/invite/${invite.token}`,
     expiresAt: invite.expiresAt.toISOString(),
     acceptedAt: invite.acceptedAt?.toISOString() ?? null,
