@@ -1,12 +1,17 @@
 "use client";
 
 // Live view of the coze.care publish pipeline, driven by
-// /api/cms/deploy-status (the cms_deploy_trigger timestamps):
+// /api/cms/deploy-status:
 //
-//   queued    a save is waiting out the debounce for its build to fire
-//   building  the deploy hook fired; Vercel is rebuilding the site
-//             (no build API — progress is estimated against ~3 min)
-//   idle      everything published
+//   queued    a save is waiting out the debounce for its build to fire,
+//             or the hook fired but Vercel hasn't started the build yet
+//   building  Vercel is actually building the site (real readyState,
+//             polled live from the Vercel API — not a timer estimate)
+//   idle      the build Vercel ran for this trigger is READY
+//   error     that build failed (readyState ERROR/CANCELED)
+//
+// Falls back to a fixed-time estimate if VERCEL_API_TOKEN isn't configured
+// server-side (see lib/vercel-deploy-status.ts).
 //
 // Polls every 15s; anything that saves content can dispatch
 // DEPLOY_STATUS_REFRESH_EVENT to update it instantly. Two variants:
@@ -18,16 +23,20 @@ import { cn } from "@/lib/utils";
 
 export const DEPLOY_STATUS_REFRESH_EVENT = "cms:deploy-status-refresh";
 
+// Only used as a fallback when the real Vercel deployment state isn't available.
 const BUILD_ESTIMATE_SECONDS = 180;
 const POLL_MS = 15_000;
+
+type DeploymentState = "QUEUED" | "BUILDING" | "READY" | "ERROR" | "CANCELED" | null;
 
 type Snapshot = {
   dirtyAt: string | null;
   triggeredAt: string | null;
   serverNow: string;
+  deployment: { state: DeploymentState; createdAt: string } | null;
 };
 
-type Phase = "loading" | "queued" | "building" | "idle";
+type Phase = "loading" | "queued" | "building" | "idle" | "error";
 
 const relativeLabel = (thenMs: number, nowMs: number) => {
   const minutes = Math.floor((nowMs - thenMs) / 60_000);
@@ -83,13 +92,24 @@ export function DeployStatus({
   const hasBuilt = triggeredAtMs > 86_400_000;
   const buildElapsedSeconds = hasBuilt ? (serverNow - triggeredAtMs) / 1000 : Infinity;
 
+  const deploymentState = snapshot?.deployment?.state ?? null;
+  // deploymentState is null when VERCEL_API_TOKEN isn't configured — fall
+  // back to the old timer-based estimate rather than showing nothing.
+  const usingRealStatus = deploymentState !== null;
+
   const phase: Phase = !snapshot || nowMs === 0
     ? "loading"
     : dirtyAtMs > triggeredAtMs
       ? "queued"
-      : buildElapsedSeconds < BUILD_ESTIMATE_SECONDS
-        ? "building"
-        : "idle";
+      : usingRealStatus
+        ? deploymentState === "READY"
+          ? "idle"
+          : deploymentState === "ERROR" || deploymentState === "CANCELED"
+            ? "error"
+            : "building"
+        : buildElapsedSeconds < BUILD_ESTIMATE_SECONDS
+          ? "building"
+          : "idle";
 
   const buildProgress = Math.min(buildElapsedSeconds / BUILD_ESTIMATE_SECONDS, 1);
   const remainingSeconds = Math.max(0, Math.round(BUILD_ESTIMATE_SECONDS - buildElapsedSeconds));
@@ -98,11 +118,13 @@ export function DeployStatus({
     phase === "loading" ? "Checking…"
     : phase === "queued" ? "Update queued"
     : phase === "building" ? "Publishing to coze.care"
+    : phase === "error" ? "Publish failed"
     : "Site up to date";
 
   const timeText =
     phase === "queued" ? "build starts shortly"
-    : phase === "building" ? `≈ ${remainingSeconds >= 60 ? `${Math.ceil(remainingSeconds / 60)}m` : `${remainingSeconds}s`} left`
+    : phase === "building" ? (usingRealStatus ? "Vercel is building coze.care" : `≈ ${remainingSeconds >= 60 ? `${Math.ceil(remainingSeconds / 60)}m` : `${remainingSeconds}s`} left`)
+    : phase === "error" ? "check the coze_client Vercel deployment"
     : phase === "idle" && hasBuilt ? `published ${relativeLabel(triggeredAtMs, serverNow)}`
     : "";
 
@@ -110,6 +132,7 @@ export function DeployStatus({
     phase === "queued" ? "bg-[var(--studio-clay)] animate-pulse"
     : phase === "building" ? "bg-primary animate-pulse"
     : phase === "idle" ? "bg-[var(--studio-sage)]"
+    : phase === "error" ? "bg-destructive"
     : "bg-muted-foreground/40";
 
   const bar = (
