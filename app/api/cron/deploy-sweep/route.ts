@@ -5,7 +5,9 @@ import { sweepDeployTrigger } from "@/lib/content-store";
 // content dirty but its build never fired (crashed function, lost trailing
 // re-fire, raced debounce), this sweep fires the catch-up build. No-op when
 // content is clean, so it costs nothing between edits.
-// Scheduled via vercel.json crons; Vercel signs the request with CRON_SECRET.
+// No longer on a schedule (the vercel.json cron was removed — the Hobby
+// plan only allows daily crons). Call it manually if the site looks stale:
+//   curl -H "Authorization: Bearer $CRON_SECRET" <base-url>/api/cron/deploy-sweep
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
