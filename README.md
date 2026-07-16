@@ -1,140 +1,36 @@
-# Pages CMS
+# Coze CMS
 
-[Pages CMS](https://pagescms.org) is an open source CMS for GitHub repositories. It is especially well suited for static sites and content-driven apps built with tools like Jekyll, Hugo, Next.js, Astro, VuePress, and similar stacks.
+The content editor for [coze.care](https://coze.care), running at
+[cms.coze.care](https://cms.coze.care). Started as a fork of
+[Pages CMS](https://pagescms.org) but now runs its own custom system:
+content lives in Supabase Postgres (not git), sign-in is invite-only
+email + password, and the editing UI is the custom "studio" under `/cms`.
 
-You can use the hosted version directly at [app.pagescms.org](https://app.pagescms.org), or run your own local development copy from this repository.
+## How it works
 
-[![Screenshot of the Pages CMS editor](https://pagescms.org/media/screenshot.png)](https://demo.pagescms.org)
+- **Content**: itineraries and the homepage are rows in Supabase Postgres
+  (`db/schema.ts`, CRUD in `lib/content-store.ts`). Media uploads go to
+  Supabase Storage (`lib/media-store.ts`).
+- **Editing**: the studio at `/cms` (dashboard, itineraries, homepage,
+  settings). The entry form is driven by the static schema in
+  `lib/cms-config.ts` and the field system in `fields/`.
+- **Publishing**: saving published content marks the site dirty and fires
+  the coze_client Vercel deploy hook (debounced, with a cron sweep backstop).
+  Draft-only edits don't trigger builds.
+- **Auth**: better-auth, email + password, invite-only sign-up. Roles
+  (`admin` | `editor`) live on the user row; `ADMIN_EMAILS` is the
+  bootstrap-owner escape hatch. Managed from `/cms/settings`.
 
-*[Watch the demo ▶](https://demo.pagescms.org)*
+## Development
 
-## Documentation
-
-Full documentation lives at [pagescms.org/docs](https://pagescms.org/docs).
-
-Useful starting points:
-
-- [Install locally](https://pagescms.org/docs/guides/installing/)
-- [Create the GitHub App](https://pagescms.org/docs/guides/installing/github-app/)
-- [Environment variables](https://pagescms.org/docs/development/environment-variables/)
-- [Upgrading to 2.x](https://pagescms.org/docs/guides/upgrading-to-2/)
-
-## Use online
-
-The easiest way to get started is the hosted version at [app.pagescms.org](https://app.pagescms.org).
-
-Use that if you want to:
-
-- try Pages CMS immediately,
-- edit content without running anything locally,
-- stay on the latest hosted version.
-
-## Local development
-
-### What you need
-
-- PostgreSQL
-- a GitHub App
-- a local `.env.local`
-- the Pages CMS repo checked out locally
-
-### Quick start
-
-1. Clone the repository:
-
-```bash
-git clone https://github.com/pagescms/pagescms.git
-cd pagescms
 ```
-
-2. Start PostgreSQL locally:
-
-```bash
-docker run --name pagescms-db -e POSTGRES_USER=pagescms -e POSTGRES_PASSWORD=pagescms -e POSTGRES_DB=pagescms -p 5432:5432 -d postgres:16
-```
-
-3. Install dependencies:
-
-```bash
 npm install
-```
-
-4. Create `.env.local` with at least:
-
-```bash
-DATABASE_URL=postgresql://pagescms:pagescms@localhost:5432/pagescms
-BETTER_AUTH_SECRET=your-random-secret
-CRYPTO_KEY=your-random-secret
-```
-
-Optional but useful:
-
-```bash
-BASE_URL=https://cms.example.com
-ADMIN_EMAILS=admin@example.com
-```
-
-Notes:
-
-- In production, `BASE_URL` should be the single canonical URL for the app.
-- Do not mix a custom domain and a `*.netlify.app` URL for the same install.
-- `ADMIN_EMAILS` is a comma-separated allowlist for access to the admin panel.
-
-Generate secrets with:
-
-```bash
-openssl rand -base64 32
-```
-
-5. Create your GitHub App with the helper:
-
-```bash
-npm run setup:github-app -- --base-url http://localhost:3000
-```
-
-Useful options:
-
-- `--owner-type personal|org`
-- `--org <slug>`
-- `--app-name "Pages CMS (local)"`
-- `--env .env.local`
-- `--no-open`
-
-6. Run database migrations:
-
-```bash
-npm run db:migrate
-```
-
-If cache state is known stale or corrupted, clear it with:
-
-```bash
-npm run db:clear-cache
-```
-
-7. Start the app:
-
-```bash
 npm run dev
 ```
 
-If you need GitHub webhooks to reach your local app, use a public tunnel URL as the helper `--base-url`.
-
-For more detail, see:
-
-- [Install locally](https://pagescms.org/docs/guides/installing/)
-- [Create the GitHub App](https://pagescms.org/docs/guides/installing/github-app/)
-- [Environment variables](https://pagescms.org/docs/development/environment-variables/)
-- [Caching](https://pagescms.org/docs/development/caching/)
-
-## Support the project
-
-- [Contribute code](https://github.com/pagescms/pagescms/pulls)
-- [Report issues](https://github.com/pagescms/pagescms/issues)
-- [Sponsor me](https://github.com/sponsors/hunvreus)
-- [Star the project on GitHub](https://github.com/pagescms/pagescms)
-- [Join the Discord chat](https://pagescms.org/chat)
+Environment variables: see `.env.local.example`. Deployment specifics and
+operational gotchas: see `DEPLOYMENT-COZE.md`.
 
 ## License
 
-Everything in this repo is released under the [MIT License](LICENSE).
+MIT — retains the license of the original Pages CMS project.

@@ -24,7 +24,9 @@ const lora = Lora({
   variable: "--font-lora",
 });
 const appUrl = getBaseUrl();
-const socialImage = "/images/social-card.png";
+// ?v= busts link-preview caches (chat apps cache OG images by URL) — bump it
+// whenever the card art changes.
+const socialImage = "/images/social-card.png?v=2";
 const description = "Content editor for coze.care.";
 
 export const metadata: Metadata = {

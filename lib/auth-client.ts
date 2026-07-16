@@ -4,5 +4,12 @@ import { createAuthClient } from "better-auth/react";
 // server-side OTP flow (see lib/auth.ts).
 const authClient = createAuthClient({});
 
-export const { signIn, signOut, useSession } = authClient;
+export const {
+  signIn,
+  signOut,
+  useSession,
+  requestPasswordReset,
+  resetPassword,
+  changePassword,
+} = authClient;
 export { authClient };

@@ -76,8 +76,9 @@ export function ItineraryEditor({
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
-      // Saves mark the site dirty — flip the deploy widgets to "queued"
-      // immediately instead of waiting for their next poll.
+      // Refresh the deploy widgets right away instead of waiting for their
+      // next poll. Saves that affect the live site (published content) show
+      // up as "queued"; draft-only saves leave the site status untouched.
       window.dispatchEvent(new Event(DEPLOY_STATUS_REFRESH_EVENT));
     }
   };

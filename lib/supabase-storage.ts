@@ -1,12 +1,11 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 declare global {
-  // eslint-disable-next-line no-var
-  var __pagesCmsSupabaseClient: SupabaseClient | undefined;
+  var __cozeCmsSupabaseClient: SupabaseClient | undefined;
 }
 
 const getSupabaseStorageClient = () => {
-  if (globalThis.__pagesCmsSupabaseClient) return globalThis.__pagesCmsSupabaseClient;
+  if (globalThis.__cozeCmsSupabaseClient) return globalThis.__cozeCmsSupabaseClient;
 
   const url = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -19,7 +18,7 @@ const getSupabaseStorageClient = () => {
   });
 
   if (process.env.NODE_ENV !== "production") {
-    globalThis.__pagesCmsSupabaseClient = client;
+    globalThis.__cozeCmsSupabaseClient = client;
   }
 
   return client;

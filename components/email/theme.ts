@@ -8,7 +8,7 @@ export const emailTheme = {
   mutedForeground: "#737373",
   link: "#0a0a0a",
   mutedLink: "#737373",
-  buttonBackground: "#009869",
-  buttonForeground: "#edfdf5",
-  buttonBorder: "#009869",
+  buttonBackground: "#a97a2c",
+  buttonForeground: "#ffffff",
+  buttonBorder: "#a97a2c",
 } as const;

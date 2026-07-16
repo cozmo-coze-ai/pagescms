@@ -83,7 +83,11 @@ const sweepDeployTrigger = async (): Promise<"fired" | "clean" | "unconfigured">
   return (await attemptDeployTrigger(hookUrl)) ? "fired" : "clean";
 };
 
-const triggerCozeClientDeploy = async () => {
+// `affectsSite` lets callers skip the rebuild (and the "Publishing to
+// coze.care" status that comes with it) for edits the public site can't
+// see — e.g. saving an itinerary that was a draft and stays a draft.
+const triggerCozeClientDeploy = async (affectsSite: boolean = true) => {
+  if (!affectsSite) return;
   const hookUrl = process.env.COZE_CLIENT_DEPLOY_HOOK_URL;
   if (!hookUrl) return;
 
@@ -221,7 +225,8 @@ const createItinerary = async (contentObject: Record<string, any>, userId: strin
     })
     .returning();
 
-  await triggerCozeClientDeploy();
+  // A new draft isn't on the site yet — nothing to publish.
+  await triggerCozeClientDeploy(row.published);
   return { row, contentObject: itineraryRowToContentObject(row) };
 };
 
@@ -253,7 +258,10 @@ const saveItinerary = async (slug: string, contentObject: Record<string, any>, u
     .where(eq(cmsItineraryTable.slug, slug))
     .returning();
 
-  await triggerCozeClientDeploy();
+  // Rebuild if the site can see the change: the entry is published, was
+  // just published, or was just unpublished. Draft-to-draft edits stay
+  // private and shouldn't queue a publish.
+  await triggerCozeClientDeploy(existing.published || row.published);
   return { row, contentObject: itineraryRowToContentObject(row) };
 };
 
@@ -291,14 +299,16 @@ const renameItinerary = async (slug: string, newSlug: string, userId: string) =>
     .where(eq(cmsItineraryTable.slug, slug))
     .returning();
 
-  await triggerCozeClientDeploy();
+  // Renaming a draft only changes CMS-internal URLs.
+  await triggerCozeClientDeploy(existing.published);
   return row;
 };
 
 const deleteItinerary = async (slug: string) => {
   const [row] = await db.delete(cmsItineraryTable).where(eq(cmsItineraryTable.slug, slug)).returning();
   if (!row) throw createHttpError(`Itinerary "${slug}" not found.`, 404);
-  await triggerCozeClientDeploy();
+  // Deleting a draft removes nothing from the site.
+  await triggerCozeClientDeploy(row.published);
   return row;
 };
 

@@ -54,7 +54,11 @@ export default function EditItineraryPage({ params }: { params: Promise<{ slug: 
       toast.error(json.message || "Could not save itinerary.");
       return;
     }
-    toast.success("Saved.");
+    toast.success(
+      values.published === true
+        ? "Saved."
+        : "Draft saved — not visible on the website.",
+    );
     if (activeSlug !== slug) {
       router.push(`/cms/itineraries/${activeSlug}`);
     } else {

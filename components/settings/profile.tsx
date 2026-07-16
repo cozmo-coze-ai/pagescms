@@ -1,8 +1,13 @@
 "use client";
 
+// Profile card on the settings pages, styled like the other studio cards
+// (compact section with an icon + uppercase header) so it doesn't stand out
+// from the Team cards next to it.
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Loader, UserRound } from "lucide-react";
 import { getInitialsFromName } from "@/lib/utils/avatar";
 import {
   Avatar,
@@ -10,17 +15,7 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Loader } from "lucide-react";
 
 type ProfileProps = {
   name?: string | null;
@@ -63,65 +58,46 @@ export function Profile({ name, email }: ProfileProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Profile</CardTitle>
-        <CardDescription>Manage the information displayed to other users.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form
-          className="w-full"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void handleSave();
-          }}
-        >
-          <div className="grid w-full items-center gap-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
-              </Label>
-              <div className="col-span-3">
-                <Input
-                  id="name"
-                  name="name"
-                  value={displayName}
-                  onChange={(event) => setDisplayName(event.target.value)}
-                  maxLength={120}
-                  disabled={isSaving}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="picture" className="text-right">
-                Picture
-              </Label>
-              <div className="col-span-3">
-                <Avatar className="h-24 w-24 rounded-md">
-                  <AvatarImage
-                    src={`https://unavatar.io/${email}?fallback=false`}
-                    alt={avatarLabel}
-                  />
-                  <AvatarFallback className="rounded-md">
-                    {getInitialsFromName(avatarLabel)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-            </div>
-          </div>
-        </form>
-      </CardContent>
-      <CardFooter>
-        <Button
-          size="sm"
-          className="ml-auto"
-          onClick={() => void handleSave()}
-          disabled={!canSave}
-        >
-          Save profile
-          {isSaving && <Loader className="ml-2 h-4 w-4 animate-spin" />}
+    <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <header className="flex items-center gap-1.5 text-muted-foreground">
+        <UserRound className="h-3.5 w-3.5" />
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em]">
+          Your profile
+        </h3>
+      </header>
+      <p className="text-xs text-muted-foreground">
+        How your name appears to other collaborators. Signed in as {email}.
+      </p>
+      <form
+        className="flex items-center gap-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleSave();
+        }}
+      >
+        <Avatar className="h-9 w-9 shrink-0">
+          <AvatarImage
+            src={`https://unavatar.io/${email}?fallback=false`}
+            alt={avatarLabel}
+          />
+          <AvatarFallback className="bg-secondary text-xs">
+            {getInitialsFromName(avatarLabel)}
+          </AvatarFallback>
+        </Avatar>
+        <Input
+          name="name"
+          aria-label="Display name"
+          placeholder="Display name"
+          value={displayName}
+          onChange={(event) => setDisplayName(event.target.value)}
+          maxLength={120}
+          disabled={isSaving}
+        />
+        <Button type="submit" className="shrink-0 gap-2" disabled={!canSave}>
+          {isSaving && <Loader className="h-4 w-4 animate-spin" />}
+          Save
         </Button>
-      </CardFooter>
-    </Card>
+      </form>
+    </section>
   );
 }

@@ -19,7 +19,11 @@ export default function NewItineraryPage() {
       toast.error(json.message || "Could not create itinerary.");
       return;
     }
-    toast.success("Itinerary created.");
+    toast.success(
+      values.published === true
+        ? "Itinerary created."
+        : "Draft created — publish it when it's ready.",
+    );
     router.push(`/cms/itineraries/${json.data.slug}`);
   };
 

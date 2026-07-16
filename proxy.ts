@@ -21,7 +21,7 @@ export function proxy(request: NextRequest) {
 		return NextResponse.next();
 	}
 
-	if (pathname.startsWith("/api/") && pathname !== "/api/webhook/github" && request.method !== "GET") {
+	if (pathname.startsWith("/api/") && request.method !== "GET") {
 		const originHeader = request.headers.get("Origin");
 		const hostHeader = request.headers.get("Host");
 		if (!originHeader || !hostHeader || !isAllowedOrigin(originHeader, hostHeader)) {

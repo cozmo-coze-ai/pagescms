@@ -15,7 +15,7 @@
 import { revalidatePath } from "next/cache";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { collaboratorTable, userTable } from "@/db/schema";
+import { userTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import {
   isBootstrapAdminEmail,
@@ -153,14 +153,6 @@ const removeCollaborator = async (userId: string) => {
         "This account is a bootstrap admin (ADMIN_EMAILS) — its access is managed in the environment config.",
     };
   }
-
-  // Legacy GitHub-era collaborator rows reference user without ON DELETE
-  // CASCADE; clear them first so the user delete can't hit an FK error.
-  await db.delete(collaboratorTable).where(eq(collaboratorTable.userId, userId));
-  await db
-    .update(collaboratorTable)
-    .set({ invitedBy: null })
-    .where(eq(collaboratorTable.invitedBy, userId));
 
   // Sessions and credential accounts cascade with the user row, so removal
   // both revokes access immediately and cleans up sign-in state.

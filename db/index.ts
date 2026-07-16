@@ -4,12 +4,11 @@ import postgres from "postgres";
 import * as schema from "./schema";
 
 declare global {
-  // eslint-disable-next-line no-var
-  var __pagesCmsPostgresClient: ReturnType<typeof postgres> | undefined;
+  var __cozeCmsPostgresClient: ReturnType<typeof postgres> | undefined;
 }
 
 const client =
-  globalThis.__pagesCmsPostgresClient
+  globalThis.__cozeCmsPostgresClient
   // SG_POSTGRES_URL is the pooled Singapore Neon connection (colocated with
   // the Seoul Vercel function region); POSTGRES_URL/DATABASE_URL are the
   // older US Neon vars, kept only as a fallback for local dev.
@@ -19,7 +18,7 @@ const client =
   });
 
 if (process.env.NODE_ENV !== "production") {
-  globalThis.__pagesCmsPostgresClient = client;
+  globalThis.__cozeCmsPostgresClient = client;
 }
 
 export const db = drizzle(client, { schema });

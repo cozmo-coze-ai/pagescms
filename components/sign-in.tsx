@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "@/lib/auth-client";
 import { getAuthCallbackURL, getSafeRedirect } from "@/lib/auth-redirect";
@@ -118,12 +119,21 @@ export function SignIn() {
               />
             </div>
             <div className="space-y-1.5">
-              <label
-                htmlFor="password"
-                className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
-              >
-                Password
-              </label>
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="password"
+                  className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
+                >
+                  Password
+                </label>
+                <Link
+                  href="/forgot-password"
+                  tabIndex={-1}
+                  className="text-[11px] text-muted-foreground underline transition-colors hover:text-foreground"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <Input
                   id="password"

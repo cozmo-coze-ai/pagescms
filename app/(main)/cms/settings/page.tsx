@@ -19,6 +19,7 @@ import { AdminCreateCollaborator } from "@/components/admin-create-collaborator"
 import { AdminEditorInvites } from "@/components/admin-editor-invites";
 import { CollaboratorManager } from "@/components/collaborator-manager";
 import { Profile } from "@/components/settings/profile";
+import { ChangePassword } from "@/components/settings/change-password";
 
 async function Collaborators({ currentUserId }: { currentUserId: string }) {
   const adminEmails = getAdminEmails();
@@ -64,6 +65,37 @@ async function Collaborators({ currentUserId }: { currentUserId: string }) {
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-2">
+      {/* One "grow the team" section: direct account creation first, the
+          invite-link alternative below it in the same card. */}
+      <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+        <header className="flex items-center gap-1.5 text-muted-foreground">
+          <KeyRound className="h-3.5 w-3.5" />
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em]">
+            Add a collaborator directly
+          </h3>
+        </header>
+        <p className="text-xs text-muted-foreground">
+          Create the account yourself with an email and password, then hand
+          them the credentials. Editors can manage all content; admins can
+          also manage collaborators.
+        </p>
+        <AdminCreateCollaborator />
+
+        <div className="h-px bg-border" />
+
+        <header className="flex items-center gap-1.5 text-muted-foreground">
+          <UserPlus className="h-3.5 w-3.5" />
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em]">
+            Or invite by link
+          </h3>
+        </header>
+        <p className="text-xs text-muted-foreground">
+          Enter their email, pick a role, and share the invite link — they
+          set their own password.
+        </p>
+        <AdminEditorInvites invites={inviteRows} />
+      </section>
+
       <section className="space-y-3 rounded-xl border border-border bg-card p-4">
         <header className="flex items-center gap-1.5 text-muted-foreground">
           <Users className="h-3.5 w-3.5" />
@@ -76,37 +108,6 @@ async function Collaborators({ currentUserId }: { currentUserId: string }) {
           currentUserId={currentUserId}
         />
       </section>
-
-      <div className="space-y-6">
-        <section className="space-y-3 rounded-xl border border-border bg-card p-4">
-          <header className="flex items-center gap-1.5 text-muted-foreground">
-            <KeyRound className="h-3.5 w-3.5" />
-            <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em]">
-              Add a collaborator directly
-            </h3>
-          </header>
-          <p className="text-xs text-muted-foreground">
-            Create the account yourself with an email and password, then hand
-            them the credentials. Editors can manage all content; admins can
-            also manage collaborators.
-          </p>
-          <AdminCreateCollaborator />
-        </section>
-
-        <section className="space-y-3 rounded-xl border border-border bg-card p-4">
-          <header className="flex items-center gap-1.5 text-muted-foreground">
-            <UserPlus className="h-3.5 w-3.5" />
-            <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em]">
-              Or invite by link
-            </h3>
-          </header>
-          <p className="text-xs text-muted-foreground">
-            Enter their email, pick a role, and share the invite link — they
-            set their own password.
-          </p>
-          <AdminEditorInvites invites={inviteRows} />
-        </section>
-      </div>
     </div>
   );
 }
@@ -131,6 +132,7 @@ export default async function CmsSettingsPage() {
       <section className="max-w-screen-sm space-y-3">
         <h2 className="font-serif text-sm tracking-tight">Profile</h2>
         <Profile name={user.name} email={user.email} />
+        <ChangePassword />
       </section>
 
       <section className="space-y-3">
