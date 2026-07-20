@@ -355,6 +355,7 @@ const saveHomepage = async (contentObject: Record<string, any>, userId: string) 
 
 export {
   sweepDeployTrigger,
+  triggerCozeClientDeploy,
   listItineraries,
   getItinerary,
   createItinerary,

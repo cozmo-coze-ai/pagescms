@@ -129,6 +129,39 @@ const cmsDeployTriggerTable = pgTable("cms_deploy_trigger", {
   chk_cms_deploy_trigger_singleton: check("chk_cms_deploy_trigger_singleton", sql`${table.id} = 1`)
 }));
 
+// Languages available for guest-page content. Adding a language to the site
+// is: insert a row here + add cms_guest_page rows for it — no code change in
+// pagescms or coze_client (both derive their language lists from this table).
+const cmsLanguageTable = pgTable("cms_language", {
+  // BCP-47-ish short code used in URLs and cms_guest_page.lang ("en", "ko"…).
+  code: text("code").notNull().primaryKey(),
+  // Native-script label shown in language switchers ("한국어", "中文").
+  label: text("label").notNull(),
+  // Value for <html lang> and hreflang alternates ("zh-CN" for code "zh").
+  htmlLang: text("html_lang").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  // Display/order position in switchers; the default language sorts first.
+  sortOrder: integer("sort_order").notNull().default(0)
+});
+
+// One row = one guest page (gka, gkb, hanbok, celebration…) in one language.
+// `fields` is the page's whole structured content (strings, *Html rich text,
+// image refs into the pages-media bucket), validated against the per-page
+// schema in lib/cms-config.ts. Layout lives in coze_client; only content here.
+const cmsGuestPageTable = pgTable("cms_guest_page", {
+  id: serial("id").primaryKey(),
+  page: text("page").notNull(),
+  lang: text("lang").notNull().references(() => cmsLanguageTable.code),
+  fields: jsonb("fields").notNull(),
+  // True while the row's content came from AI translation and no human has
+  // edited it since — drives the "needs review" flag in the editor.
+  machineTranslated: boolean("machine_translated").notNull().default(false),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedBy: text("updated_by").references(() => userTable.id)
+}, table => ({
+  uq_cms_guest_page_page_lang: uniqueIndex("uq_cms_guest_page_page_lang").on(table.page, table.lang)
+}));
+
 export {
   userTable,
   sessionTable,
@@ -137,5 +170,7 @@ export {
   cmsItineraryTable,
   cmsHomepageContentTable,
   cmsDeployTriggerTable,
-  cmsEditorInviteTable
+  cmsEditorInviteTable,
+  cmsLanguageTable,
+  cmsGuestPageTable
 };

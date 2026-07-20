@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   Home,
   LayoutDashboard,
+  Layers,
   LogOut,
   Map,
   Settings,
@@ -43,6 +44,7 @@ const navItems = [
   { href: "/cms", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/cms/itineraries", label: "Itineraries", icon: Map },
   { href: "/cms/homepage", label: "Homepage", icon: Home },
+  { href: "/cms/site-pages", label: "Site pages", icon: Layers },
   { href: "/cms/settings", label: "Settings", icon: Settings },
 ];
 
