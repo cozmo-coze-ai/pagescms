@@ -227,52 +227,70 @@ function ShapeNode({
     return (
       <div className="space-y-2">
         <Label className="text-xs font-medium">{humanize(fieldKey)}</Label>
-        <div className="space-y-1.5">
-          {value.map((item, index) => {
-            const text = item as string;
-            const short = !isHtmlKey(fieldKey) && text.length <= 60 && !text.includes("\n");
-            return isStringArray ? (
+        {isStringArray ? (
+          <div className="space-y-1.5">
+            {value.map((item, index) => {
+              const text = item as string;
+              const short = !isHtmlKey(fieldKey) && text.length <= 60 && !text.includes("\n");
+              return (
+                <div
+                  key={index}
+                  className="flex items-center gap-1.5 rounded-md border border-border p-1.5"
+                >
+                  <span className="shrink-0 text-[11px] font-medium text-muted-foreground">
+                    {index + 1}
+                  </span>
+                  {short ? (
+                    <Input
+                      value={text}
+                      className="h-7 px-1.5 text-[13px]"
+                      onChange={(e) => ctx.onChange([...path, index], e.target.value)}
+                    />
+                  ) : (
+                    <Textarea
+                      value={text}
+                      rows={2}
+                      className={cn("min-h-0", isHtmlKey(fieldKey) && "font-mono text-[12px]")}
+                      onChange={(e) => ctx.onChange([...path, index], e.target.value)}
+                    />
+                  )}
+                  {value.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                      aria-label="Remove item"
+                      onClick={() => {
+                        const next = value.filter((_, i) => i !== index);
+                        ctx.onChange(path, next);
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          // coze_client's own "gap method" card grid (see coze_client
+          // CLAUDE.md): 1px background gap between cells reads as a hairline
+          // divider — matches how these items actually render on the live
+          // guest pages, instead of looking like unrelated stacked boxes.
+          <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2">
+            {value.map((item, index) => (
               <div
                 key={index}
-                className="flex items-center gap-1.5 rounded-md border border-border p-1.5"
+                className={cn(
+                  "space-y-2 bg-card p-3",
+                  // last item spans both columns when the count is odd, so
+                  // it doesn't leave a lone empty cell beside it
+                  value.length % 2 === 1 && index === value.length - 1 && "sm:col-span-2",
+                )}
               >
-                <span className="shrink-0 text-[11px] font-medium text-muted-foreground">
-                  {index + 1}
-                </span>
-                {short ? (
-                  <Input
-                    value={text}
-                    className="h-7 px-1.5 text-[13px]"
-                    onChange={(e) => ctx.onChange([...path, index], e.target.value)}
-                  />
-                ) : (
-                  <Textarea
-                    value={text}
-                    rows={2}
-                    className={cn("min-h-0", isHtmlKey(fieldKey) && "font-mono text-[12px]")}
-                    onChange={(e) => ctx.onChange([...path, index], e.target.value)}
-                  />
-                )}
-                {value.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-xs"
-                    className="shrink-0 text-muted-foreground hover:text-destructive"
-                    aria-label="Remove item"
-                    onClick={() => {
-                      const next = value.filter((_, i) => i !== index);
-                      ctx.onChange(path, next);
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div key={index} className="overflow-hidden rounded-md border border-border">
-                <div className="flex items-center justify-between gap-2 border-b border-border bg-secondary/70 px-2.5 py-1.5">
-                  <span className="flex items-center gap-1.5 text-[13px] font-bold text-foreground">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
                     <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
                       {index + 1}
                     </span>
@@ -294,19 +312,17 @@ function ShapeNode({
                     </Button>
                   )}
                 </div>
-                <div className="space-y-2.5 p-3">
-                  <ShapeNode
-                    fieldKey={fieldKey}
-                    value={item}
-                    path={[...path, index]}
-                    ctx={ctx}
-                    depth={depth + 1}
-                  />
-                </div>
+                <ShapeNode
+                  fieldKey={fieldKey}
+                  value={item}
+                  path={[...path, index]}
+                  ctx={ctx}
+                  depth={depth + 1}
+                />
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
         <Button
           type="button"
           variant="outline"
