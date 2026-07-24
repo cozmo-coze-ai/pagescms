@@ -1,0 +1,2 @@
+ALTER TABLE "cms_editor_invite" ADD CONSTRAINT "cms_editor_invite_role_check" CHECK ("cms_editor_invite"."role" in ('admin', 'editor', 'viewer'));--> statement-breakpoint
+ALTER TABLE "user" ADD CONSTRAINT "user_role_check" CHECK ("user"."role" in ('admin', 'editor', 'viewer'));

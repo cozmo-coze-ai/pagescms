@@ -1035,6 +1035,7 @@ const EntryForm = ({
   onDirtyChange,
   onChangeRegistered,
   layout,
+  readonly = false,
 }: {
   fields: Field[];
   contentObject?: Record<string, unknown>;
@@ -1045,6 +1046,9 @@ const EntryForm = ({
   // Custom arrangement of the rendered top-level fields, keyed by field name.
   // Without it the fields render as a single stacked column.
   layout?: (fieldNodes: Record<string, React.ReactNode>) => React.ReactNode;
+  // Cascades to every field (via inheritedReadonly) so list add/remove and
+  // media pickers are disabled too — used to lock the whole form for viewers.
+  readonly?: boolean;
 }) => {
   const zodSchema = useMemo(() => {
     return generateZodSchema(fields);
@@ -1167,6 +1171,7 @@ const EntryForm = ({
     undefined,
     registerBeforeSubmitHook,
     runBeforeValidationHooks,
+    readonly,
   );
 
   return (

@@ -8,11 +8,13 @@ import { DEPLOY_STATUS_REFRESH_EVENT } from "@/components/cms/deploy-status";
 import { EntryForm } from "@/components/entry/entry-form";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useUser } from "@/contexts/user-context";
 import { cmsConfig, SITE_URL } from "@/lib/cms-config";
 
 const homepageFields = cmsConfig.content.find((item) => item.name === "homepage")!.fields;
 
 export default function HomepagePage() {
+  const { canWrite } = useUser();
   const [contentObject, setContentObject] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
@@ -60,15 +62,17 @@ export default function HomepagePage() {
               <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
           </Button>
-          <Button type="submit" form="entry-form" size="sm" disabled={!contentObject}>
-            Save changes
-          </Button>
+          {canWrite && (
+            <Button type="submit" form="entry-form" size="sm" disabled={!contentObject}>
+              Save changes
+            </Button>
+          )}
         </div>
       </div>
 
       <div className="rounded-lg border border-border bg-card p-4">
         {contentObject ? (
-          <EntryForm fields={homepageFields as any} contentObject={contentObject} onSubmit={handleSubmit} />
+          <EntryForm fields={homepageFields as any} contentObject={contentObject} onSubmit={handleSubmit} readonly={!canWrite} />
         ) : (
           <div className="space-y-4">
             <Skeleton className="h-10 w-full" />

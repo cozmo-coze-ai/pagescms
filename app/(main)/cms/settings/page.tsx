@@ -48,7 +48,12 @@ async function Collaborators({ currentUserId }: { currentUserId: string }) {
     name: person.name,
     email: person.email,
     image: person.image,
-    role: person.role === "admin" ? ("admin" as const) : ("editor" as const),
+    role:
+      person.role === "admin"
+        ? ("admin" as const)
+        : person.role === "viewer"
+          ? ("viewer" as const)
+          : ("editor" as const),
     isBootstrapAdmin: adminEmails.has(person.email.trim().toLowerCase()),
     joinedAt: person.createdAt.toISOString(),
   }));

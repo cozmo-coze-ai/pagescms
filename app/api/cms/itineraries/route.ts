@@ -1,4 +1,4 @@
-import { requireApiUserSession } from "@/lib/session-server";
+import { requireApiUserSession, requireApiWriteAccess } from "@/lib/session-server";
 import { listItineraries, createItinerary } from "@/lib/content-store";
 import { toErrorResponse } from "@/lib/api-error";
 
@@ -25,7 +25,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const sessionResult = await requireApiUserSession();
+    const sessionResult = await requireApiWriteAccess();
     if ("response" in sessionResult) return sessionResult.response;
     const user = sessionResult.user;
 

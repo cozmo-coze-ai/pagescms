@@ -1,4 +1,4 @@
-import { requireApiUserSession } from "@/lib/session-server";
+import { requireApiWriteAccess } from "@/lib/session-server";
 import { uploadPagesMedia } from "@/lib/guest-page-store";
 import { createHttpError, toErrorResponse } from "@/lib/api-error";
 
@@ -11,7 +11,7 @@ import { createHttpError, toErrorResponse } from "@/lib/api-error";
 
 export async function POST(request: Request, context: { params: Promise<{ page: string }> }) {
   try {
-    const sessionResult = await requireApiUserSession();
+    const sessionResult = await requireApiWriteAccess();
     if ("response" in sessionResult) return sessionResult.response;
 
     const { page } = await context.params;

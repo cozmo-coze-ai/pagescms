@@ -1,4 +1,4 @@
-import { requireApiUserSession } from "@/lib/session-server";
+import { requireApiUserSession, requireApiWriteAccess } from "@/lib/session-server";
 import { getGuestPage, saveGuestPage } from "@/lib/guest-page-store";
 import { createHttpError, toErrorResponse } from "@/lib/api-error";
 
@@ -30,7 +30,7 @@ export async function GET(_request: Request, context: Params) {
 
 export async function PUT(request: Request, context: Params) {
   try {
-    const sessionResult = await requireApiUserSession();
+    const sessionResult = await requireApiWriteAccess();
     if ("response" in sessionResult) return sessionResult.response;
     const user = sessionResult.user;
 

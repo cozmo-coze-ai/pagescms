@@ -76,6 +76,7 @@ export function AdminCreateCollaborator() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="editor">Editor</SelectItem>
+            <SelectItem value="viewer">Viewer</SelectItem>
             <SelectItem value="admin">Admin</SelectItem>
           </SelectContent>
         </Select>

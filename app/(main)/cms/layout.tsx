@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ArrowUpRight,
+  Eye,
   Home,
   LayoutDashboard,
   Layers,
@@ -59,7 +60,7 @@ const Brand = () => (
 
 export default function CmsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user } = useUser();
+  const { user, canWrite } = useUser();
 
   useEffect(() => {
     document.documentElement.classList.add("studio");
@@ -204,6 +205,15 @@ export default function CmsLayout({ children }: { children: React.ReactNode }) {
             </header>
 
             <main className="mx-auto max-w-screen-xl px-4 py-4 md:px-8 md:py-6">
+              {!canWrite && (
+                <div className="mb-4 flex items-center gap-2 rounded-md border border-border bg-secondary/50 px-3 py-2 text-[13px] text-muted-foreground">
+                  <Eye className="h-4 w-4 shrink-0" />
+                  <span>
+                    You have <span className="font-medium text-foreground">read-only</span>{" "}
+                    (viewer) access — you can browse everything, but changes are disabled.
+                  </span>
+                </div>
+              )}
               {children}
             </main>
           </div>

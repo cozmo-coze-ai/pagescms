@@ -420,12 +420,17 @@ export function ShapeForm({
   mediaBaseUrl,
   reference,
   onChange,
+  readonly = false,
 }: {
   page: string;
   fields: Record<string, Json>;
   mediaBaseUrl: string;
   reference?: Record<string, Json> | null;
   onChange: (next: Record<string, Json>) => void;
+  // Locks the whole form for read-only "viewer" accounts. A native disabled
+  // <fieldset> disables every descendant input/textarea/button (edits, remove,
+  // and image upload) with no per-element wiring.
+  readonly?: boolean;
 }) {
   const handleChange = (path: (string | number)[], value: Json) => {
     const next = structuredClone(fields);
@@ -456,9 +461,14 @@ export function ShapeForm({
   const right = entries.filter((_, i) => i % 2 === 1);
 
   return (
-    <div className="flex flex-col gap-3 md:flex-row">
-      <div className="flex-1 space-y-3">{left.map(renderSection)}</div>
-      {right.length > 0 && <div className="flex-1 space-y-3">{right.map(renderSection)}</div>}
-    </div>
+    <fieldset
+      disabled={readonly}
+      className="m-0 min-w-0 border-0 p-0 disabled:opacity-90"
+    >
+      <div className="flex flex-col gap-3 md:flex-row">
+        <div className="flex-1 space-y-3">{left.map(renderSection)}</div>
+        {right.length > 0 && <div className="flex-1 space-y-3">{right.map(renderSection)}</div>}
+      </div>
+    </fieldset>
   );
 }

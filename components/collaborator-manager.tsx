@@ -32,15 +32,26 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+type CollaboratorRole = "admin" | "editor" | "viewer";
+
 type CollaboratorRow = {
   id: string;
   name: string;
   email: string;
   image: string | null;
-  role: "admin" | "editor";
+  role: CollaboratorRole;
   isBootstrapAdmin: boolean;
   joinedAt: string;
 };
+
+const ROLE_LABELS: Record<CollaboratorRole, string> = {
+  admin: "Admin",
+  editor: "Editor",
+  viewer: "Viewer",
+};
+
+// Roles an admin can switch someone to, in display order.
+const ASSIGNABLE_ROLES: CollaboratorRole[] = ["admin", "editor", "viewer"];
 
 const joinedLabel = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", {
@@ -87,7 +98,6 @@ export function CollaboratorManager({
       <ul className="divide-y divide-border">
         {collaborators.map((person) => {
           const isSelf = person.id === currentUserId;
-          const isAdmin = person.role === "admin" || person.isBootstrapAdmin;
           const canManage = !isSelf && !person.isBootstrapAdmin;
           return (
             <li key={person.id} className="flex items-center gap-3 py-2.5">
@@ -109,10 +119,12 @@ export function CollaboratorManager({
                   <span className="studio-pill" title="Managed via ADMIN_EMAILS">
                     Owner
                   </span>
-                ) : isAdmin ? (
+                ) : person.role === "admin" ? (
                   <span className="studio-pill">Admin</span>
                 ) : (
-                  <span className="studio-pill studio-pill-gray">Editor</span>
+                  <span className="studio-pill studio-pill-gray">
+                    {ROLE_LABELS[person.role]}
+                  </span>
                 )}
                 <span className="hidden text-[11px] text-muted-foreground sm:block">
                   Joined {joinedLabel(person.joinedAt)}
@@ -131,30 +143,23 @@ export function CollaboratorManager({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      {person.role === "admin" ? (
-                        <DropdownMenuItem
-                          onClick={() =>
-                            run(
-                              () => updateCollaboratorRole(person.id, "editor"),
-                              `${person.name || person.email} is now an editor.`,
-                            )
-                          }
-                        >
-                          <ShieldOff />
-                          Change to editor
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem
-                          onClick={() =>
-                            run(
-                              () => updateCollaboratorRole(person.id, "admin"),
-                              `${person.name || person.email} is now an admin.`,
-                            )
-                          }
-                        >
-                          <Shield />
-                          Make admin
-                        </DropdownMenuItem>
+                      {ASSIGNABLE_ROLES.filter((role) => role !== person.role).map(
+                        (role) => (
+                          <DropdownMenuItem
+                            key={role}
+                            onClick={() =>
+                              run(
+                                () => updateCollaboratorRole(person.id, role),
+                                `${person.name || person.email} is now ${
+                                  role === "editor" ? "an editor" : `a ${role}`
+                                }.`,
+                              )
+                            }
+                          >
+                            {role === "admin" ? <Shield /> : <ShieldOff />}
+                            Change to {ROLE_LABELS[role].toLowerCase()}
+                          </DropdownMenuItem>
+                        ),
                       )}
                       <DropdownMenuItem
                         onClick={() =>

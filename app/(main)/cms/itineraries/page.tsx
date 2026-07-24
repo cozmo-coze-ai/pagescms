@@ -38,6 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { DocumentTitle } from "@/components/document-title";
+import { useUser } from "@/contexts/user-context";
 import { mediaPublicUrl } from "@/lib/media-path";
 import { SITE_URL } from "@/lib/cms-config";
 import { cn } from "@/lib/utils";
@@ -104,7 +105,9 @@ const CardMenu = ({
   item: ItinerarySummary;
   onDelete: () => void;
   className?: string;
-}) => (
+}) => {
+  const { canWrite } = useUser();
+  return (
   <DropdownMenu>
     <DropdownMenuTrigger asChild>
       <Button
@@ -119,7 +122,7 @@ const CardMenu = ({
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end">
       <DropdownMenuItem asChild>
-        <Link href={`/cms/itineraries/${item.slug}`}>Edit</Link>
+        <Link href={`/cms/itineraries/${item.slug}`}>{canWrite ? "Edit" : "Open"}</Link>
       </DropdownMenuItem>
       {item.published && (
         <DropdownMenuItem asChild>
@@ -129,14 +132,18 @@ const CardMenu = ({
           </a>
         </DropdownMenuItem>
       )}
-      <DropdownMenuItem variant="destructive" onClick={onDelete}>
-        Delete
-      </DropdownMenuItem>
+      {canWrite && (
+        <DropdownMenuItem variant="destructive" onClick={onDelete}>
+          Delete
+        </DropdownMenuItem>
+      )}
     </DropdownMenuContent>
   </DropdownMenu>
-);
+  );
+};
 
 export default function ItinerariesListPage() {
+  const { canWrite } = useUser();
   const [items, setItems] = useState<ItinerarySummary[] | null>(null);
   const [view, setView] = useState<ViewMode>("wall");
   const [query, setQuery] = useState("");
@@ -265,12 +272,14 @@ export default function ItinerariesListPage() {
               <Rows3 />
             </Button>
           </div>
-          <Button asChild size="sm" className="gap-1.5">
-            <Link href="/cms/itineraries/new">
-              <Plus className="h-4 w-4" />
-              New itinerary
-            </Link>
-          </Button>
+          {canWrite && (
+            <Button asChild size="sm" className="gap-1.5">
+              <Link href="/cms/itineraries/new">
+                <Plus className="h-4 w-4" />
+                New itinerary
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 

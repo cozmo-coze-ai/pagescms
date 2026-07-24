@@ -17,6 +17,7 @@ import { WritingKit } from "@/components/cms/writing-kit";
 import { DeployStatus, DEPLOY_STATUS_REFRESH_EVENT } from "@/components/cms/deploy-status";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useUser } from "@/contexts/user-context";
 import { cmsConfig } from "@/lib/cms-config";
 import { Field } from "@/types/field";
 
@@ -63,6 +64,7 @@ export function ItineraryEditor({
   viewUrl?: string;
   hint?: string;
 }) {
+  const { canWrite } = useUser();
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
@@ -84,7 +86,9 @@ export function ItineraryEditor({
   };
 
   // ⌘S / Ctrl+S saves instead of opening the browser's save dialog.
+  // Read-only viewers can't save, so leave the browser default alone for them.
   useEffect(() => {
+    if (!canWrite) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
@@ -94,7 +98,7 @@ export function ItineraryEditor({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [canWrite]);
 
   // Warn before closing the tab with unsaved edits.
   useEffect(() => {
@@ -140,19 +144,21 @@ export function ItineraryEditor({
                 </a>
               </Button>
             )}
-            <Button
-              type="submit"
-              form="entry-form"
-              size="sm"
-              disabled={loading || isSaving}
-              className="gap-1.5"
-            >
-              {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {saveLabel}
-              <kbd className="hidden rounded bg-primary-foreground/20 px-1 font-sans text-[10px] font-medium sm:inline-block">
-                ⌘S
-              </kbd>
-            </Button>
+            {canWrite && (
+              <Button
+                type="submit"
+                form="entry-form"
+                size="sm"
+                disabled={loading || isSaving}
+                className="gap-1.5"
+              >
+                {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {saveLabel}
+                <kbd className="hidden rounded bg-primary-foreground/20 px-1 font-sans text-[10px] font-medium sm:inline-block">
+                  ⌘S
+                </kbd>
+              </Button>
+            )}
           </div>
           {/* Save-in-flight feedback: thin sliding bar along the toolbar. */}
           {isSaving && (
@@ -171,6 +177,7 @@ export function ItineraryEditor({
           contentObject={contentObject}
           onSubmit={handleSubmit}
           onDirtyChange={setIsDirty}
+          readonly={!canWrite}
           layout={(f) => (
             <div className={GRID}>
               {!contentObject && <AutoSlug />}

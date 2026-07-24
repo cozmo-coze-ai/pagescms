@@ -5,6 +5,10 @@ import { User } from "@/types/user";
 
 interface UserContextType {
   user: User | null;
+  // Read-only "viewer" accounts can't mutate content; everyone else can.
+  // Server routes enforce this too (requireApiWriteAccess) — this just lets
+  // the UI hide/disable write controls so viewers get a clean read-only view.
+  canWrite: boolean;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -24,8 +28,9 @@ export const UserProvider = ({
   user: User | null;
   children: React.ReactNode;
 }) => {
+  const canWrite = user?.role !== "viewer";
   return (
-    <UserContext.Provider value={{ user }}>
+    <UserContext.Provider value={{ user, canWrite }}>
       {children}
     </UserContext.Provider>
   );

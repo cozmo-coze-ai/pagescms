@@ -18,13 +18,16 @@ const userTable = pgTable("user", {
   image: text("image"),
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull().default(false),
-  // "admin" | "editor". Admins manage collaborators/settings; emails listed
-  // in ADMIN_EMAILS are bootstrap admins regardless of this column (so the
-  // owners can never be locked out from the UI).
+  // "admin" | "editor" | "viewer". Admins manage collaborators/settings;
+  // editors edit content; viewers are read-only. Emails listed in ADMIN_EMAILS
+  // are bootstrap admins regardless of this column (so the owners can never be
+  // locked out from the UI).
   role: text("role").notNull().default("editor"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+}, table => ({
+  user_role_check: check("user_role_check", sql`${table.role} in ('admin', 'editor', 'viewer')`)
+}));
 
 const sessionTable = pgTable("session", {
   id: text("id").notNull().primaryKey(),
@@ -107,7 +110,7 @@ const cmsEditorInviteTable = pgTable("cms_editor_invite", {
   id: serial("id").primaryKey(),
   token: text("token").notNull(),
   email: text("email").notNull(),
-  // Role granted on accept: "admin" | "editor".
+  // Role granted on accept: "admin" | "editor" | "viewer".
   role: text("role").notNull().default("editor"),
   invitedBy: text("invited_by"),
   expiresAt: timestamp("expires_at").notNull(),
@@ -116,6 +119,7 @@ const cmsEditorInviteTable = pgTable("cms_editor_invite", {
 }, table => ({
   uq_cms_editor_invite_token: uniqueIndex("uq_cms_editor_invite_token").on(table.token),
   uq_cms_editor_invite_email_ci: uniqueIndex("uq_cms_editor_invite_email_ci").on(sql`lower(${table.email})`),
+  cms_editor_invite_role_check: check("cms_editor_invite_role_check", sql`${table.role} in ('admin', 'editor', 'viewer')`),
 }));
 
 const cmsDeployTriggerTable = pgTable("cms_deploy_trigger", {

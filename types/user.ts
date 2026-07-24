@@ -5,6 +5,6 @@ export interface User {
   image?: string | null;
   emailVerified: boolean;
   isAdmin?: boolean;
-  role?: "admin" | "editor";
+  role?: "admin" | "editor" | "viewer";
   accounts?: any[];
 }

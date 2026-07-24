@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { UserProvider } from "@/contexts/user-context";
 import { User } from "@/types/user";
 import { getServerSession } from "@/lib/session-server";
-import { hasAdminAccess } from "@/lib/admin";
+import { getUserRole } from "@/lib/admin";
 
 export default async function Layout({
   children,
@@ -19,9 +19,11 @@ export default async function Layout({
       : "/sign-in";
   if (!session?.user) return redirect(signInUrl);
 
+  const role = (await getUserRole(session.user as User)) ?? "editor";
   const userWithAdmin = {
     ...session.user,
-    isAdmin: await hasAdminAccess(session.user as User),
+    role,
+    isAdmin: role === "admin",
   };
 
   return (

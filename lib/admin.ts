@@ -8,9 +8,12 @@ import { userTable } from "@/db/schema";
 import { createHttpError } from "@/lib/api-error";
 import type { User } from "@/types/user";
 
-type CollaboratorRole = "admin" | "editor";
+type CollaboratorRole = "admin" | "editor" | "viewer";
 
-const COLLABORATOR_ROLES: readonly CollaboratorRole[] = ["admin", "editor"];
+const COLLABORATOR_ROLES: readonly CollaboratorRole[] = ["admin", "editor", "viewer"];
+
+// Roles that may write content. "viewer" is read-only; everyone else can edit.
+const WRITE_ROLES: readonly CollaboratorRole[] = ["admin", "editor"];
 
 const isCollaboratorRole = (value: unknown): value is CollaboratorRole =>
   typeof value === "string" && (COLLABORATOR_ROLES as readonly string[]).includes(value);
@@ -31,13 +34,15 @@ const isBootstrapAdminEmail = (email: string | null | undefined) => {
   return getAdminEmails().has(email.trim().toLowerCase());
 };
 
-// Role lives in the database (user.role, "admin" | "editor") and is managed
-// from /cms/settings; the env list is only the bootstrap/lockout escape hatch.
-const hasAdminAccess = async (
+// Role lives in the database (user.role, "admin" | "editor" | "viewer") and is
+// managed from /cms/settings; the env list is only the bootstrap/lockout escape
+// hatch. Returns the effective role, defaulting to "editor" for rows with a
+// missing/unrecognized role so existing behavior is preserved.
+const getUserRole = async (
   user: Pick<User, "id" | "email"> | null | undefined,
-) => {
-  if (!user) return false;
-  if (isBootstrapAdminEmail(user.email)) return true;
+): Promise<CollaboratorRole | null> => {
+  if (!user) return null;
+  if (isBootstrapAdminEmail(user.email)) return "admin";
 
   const row = (
     await db
@@ -46,7 +51,20 @@ const hasAdminAccess = async (
       .where(eq(userTable.id, user.id))
       .limit(1)
   )[0];
-  return row?.role === "admin";
+  if (!row) return null;
+  return isCollaboratorRole(row.role) ? row.role : "editor";
+};
+
+const hasAdminAccess = async (
+  user: Pick<User, "id" | "email"> | null | undefined,
+) => (await getUserRole(user)) === "admin";
+
+// Write access = anyone who is not a read-only viewer (and is a known user).
+const hasWriteAccess = async (
+  user: Pick<User, "id" | "email"> | null | undefined,
+) => {
+  const role = await getUserRole(user);
+  return role !== null && (WRITE_ROLES as readonly string[]).includes(role);
 };
 
 const requireAdminSession = async () => {
@@ -68,7 +86,9 @@ const requireAdminSession = async () => {
 
 export {
   getAdminEmails,
+  getUserRole,
   hasAdminAccess,
+  hasWriteAccess,
   isBootstrapAdminEmail,
   isCollaboratorRole,
   requireAdminSession,

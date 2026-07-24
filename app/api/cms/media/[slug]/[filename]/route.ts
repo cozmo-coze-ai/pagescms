@@ -1,4 +1,4 @@
-import { requireApiUserSession } from "@/lib/session-server";
+import { requireApiWriteAccess } from "@/lib/session-server";
 import { deleteMedia } from "@/lib/media-store";
 import { toErrorResponse } from "@/lib/api-error";
 
@@ -8,7 +8,7 @@ import { toErrorResponse } from "@/lib/api-error";
 
 export async function DELETE(_request: Request, context: { params: Promise<{ slug: string; filename: string }> }) {
   try {
-    const sessionResult = await requireApiUserSession();
+    const sessionResult = await requireApiWriteAccess();
     if ("response" in sessionResult) return sessionResult.response;
 
     const { slug, filename } = await context.params;

@@ -1,4 +1,4 @@
-import { requireApiUserSession } from "@/lib/session-server";
+import { requireApiUserSession, requireApiWriteAccess } from "@/lib/session-server";
 import { listMedia, uploadMedia } from "@/lib/media-store";
 import { createHttpError, toErrorResponse } from "@/lib/api-error";
 
@@ -23,7 +23,7 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
 
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
   try {
-    const sessionResult = await requireApiUserSession();
+    const sessionResult = await requireApiWriteAccess();
     if ("response" in sessionResult) return sessionResult.response;
 
     const { slug } = await context.params;

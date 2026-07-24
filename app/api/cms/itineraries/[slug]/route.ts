@@ -1,4 +1,4 @@
-import { requireApiUserSession } from "@/lib/session-server";
+import { requireApiUserSession, requireApiWriteAccess } from "@/lib/session-server";
 import { getItinerary, saveItinerary, deleteItinerary } from "@/lib/content-store";
 import { createHttpError, toErrorResponse } from "@/lib/api-error";
 
@@ -29,7 +29,7 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
 
 export async function PUT(request: Request, context: { params: Promise<{ slug: string }> }) {
   try {
-    const sessionResult = await requireApiUserSession();
+    const sessionResult = await requireApiWriteAccess();
     if ("response" in sessionResult) return sessionResult.response;
     const user = sessionResult.user;
 
@@ -49,7 +49,7 @@ export async function PUT(request: Request, context: { params: Promise<{ slug: s
 
 export async function DELETE(_request: Request, context: { params: Promise<{ slug: string }> }) {
   try {
-    const sessionResult = await requireApiUserSession();
+    const sessionResult = await requireApiWriteAccess();
     if ("response" in sessionResult) return sessionResult.response;
 
     const { slug } = await context.params;

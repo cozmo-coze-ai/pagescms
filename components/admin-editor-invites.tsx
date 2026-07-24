@@ -89,6 +89,7 @@ export function AdminEditorInvites({ invites }: { invites: InviteRow[] }) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="editor">Editor</SelectItem>
+            <SelectItem value="viewer">Viewer</SelectItem>
             <SelectItem value="admin">Admin</SelectItem>
           </SelectContent>
         </Select>
@@ -122,7 +123,11 @@ export function AdminEditorInvites({ invites }: { invites: InviteRow[] }) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm truncate">{invite.email}</p>
                   <p className="text-xs text-muted-foreground">
-                    {invite.role === "admin" ? "Admin · " : ""}
+                    {invite.role === "admin"
+                      ? "Admin · "
+                      : invite.role === "viewer"
+                        ? "Viewer · "
+                        : ""}
                     {status === "accepted"
                       ? `Accepted ${new Date(invite.acceptedAt!).toLocaleDateString()}`
                       : status === "expired"

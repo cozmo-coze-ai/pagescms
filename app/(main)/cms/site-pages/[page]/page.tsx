@@ -16,6 +16,7 @@ import {
 } from "@/components/cms/site-page-sheet";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useUser } from "@/contexts/user-context";
 import { cn } from "@/lib/utils";
 
 /**
@@ -64,6 +65,7 @@ function describeOtherContent(value: Json, key = ""): { hasImages: boolean; hasL
 }
 
 export default function SitePageEditor() {
+  const { canWrite } = useUser();
   const params = useParams<{ page: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -280,9 +282,11 @@ export default function SitePageEditor() {
             </div>
           )}
         </div>
-        <Button size="sm" onClick={handleSave} disabled={!fieldsByLang || !anyDirty || saving}>
-          {saving ? "Saving…" : "Save changes"}
-        </Button>
+        {canWrite && (
+          <Button size="sm" onClick={handleSave} disabled={!fieldsByLang || !anyDirty || saving}>
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
+        )}
       </div>
 
       {!fieldsByLang ? (
@@ -333,6 +337,7 @@ export default function SitePageEditor() {
                 fields={otherFields}
                 mediaBaseUrl={mediaBaseUrl}
                 onChange={(next) => handleOtherContentChange(otherLang, next)}
+                readonly={!canWrite}
               />
             </div>
           )}
@@ -346,6 +351,7 @@ export default function SitePageEditor() {
             setFieldsByLang((prev) => ({ ...(prev ?? {}), en: next }));
             setDirtyLangs((prev) => ({ ...prev, en: true }));
           }}
+          readonly={!canWrite}
         />
       )}
     </div>
