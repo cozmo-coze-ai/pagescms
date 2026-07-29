@@ -43,11 +43,12 @@ export const GUEST_PAGES: {
 }[] = [
   {
     page: "manuals",
-    label: "Guest manuals (Ananda & Prana)",
+    label: "Guest manuals (Kelly, Ananda & Prana)",
     description:
-      "All text on the /gka and /gkb check-in manuals — shared copy with per-property names filled in automatically.",
+      "All text on the /gk, /gka and /gkb check-in manuals — shared copy with per-property names filled in automatically.",
     multiLang: true,
     previewPaths: [
+      { label: "Kelly", path: "/gk" },
       { label: "Ananda", path: "/gka" },
       { label: "Prana", path: "/gkb" },
     ],
