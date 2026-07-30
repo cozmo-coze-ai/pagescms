@@ -81,6 +81,39 @@ export const GUEST_PAGES: {
     multiLang: false,
     previewPaths: [{ label: "", path: "/gkb" }],
   },
+  {
+    page: "manuals-ht",
+    label: "Guest manuals (COZE HT, HTA & HTB)",
+    description:
+      "All text on the /ht, /hta and /htb Haebangchon check-in manuals — shared copy (incl. the Wellness & Rooftop section) with per-property names filled in automatically.",
+    multiLang: true,
+    previewPaths: [
+      { label: "HT", path: "/ht" },
+      { label: "HTA", path: "/hta" },
+      { label: "HTB", path: "/htb" },
+    ],
+  },
+  {
+    page: "ht-config",
+    label: "COZE HT — property facts",
+    description: "Unit label, WiFi network & password and photo paths for /ht. Same in every language.",
+    multiLang: false,
+    previewPaths: [{ label: "", path: "/ht" }],
+  },
+  {
+    page: "hta-config",
+    label: "COZE HTA — property facts",
+    description: "Unit label, WiFi network & password and photo paths for /hta. Same in every language.",
+    multiLang: false,
+    previewPaths: [{ label: "", path: "/hta" }],
+  },
+  {
+    page: "htb-config",
+    label: "COZE HTB — property facts",
+    description: "Unit label, WiFi network & password and photo paths for /htb. Same in every language.",
+    multiLang: false,
+    previewPaths: [{ label: "", path: "/htb" }],
+  },
 ];
 
 const listLanguages = async () =>
