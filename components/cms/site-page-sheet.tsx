@@ -16,7 +16,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Code2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { humanize, isImageObject, type Json } from "@/components/cms/shape-form";
+import {
+  humanize,
+  isImageObject,
+  isImagePathString,
+  type Json,
+} from "@/components/cms/shape-form";
 
 export type Language = { code: string; label: string };
 
@@ -46,6 +51,7 @@ function collectTextRows(fields: Record<string, Json>): TextRow[] {
   const rows: TextRow[] = [];
   const walk = (value: Json, path: string[], sectionKey: string, sectionLabel: string) => {
     if (typeof value === "string") {
+      if (isImagePathString(path[path.length - 1], value)) return;
       rows.push({
         id: path.join("."),
         sectionKey,
@@ -74,6 +80,7 @@ function collectTextRows(fields: Record<string, Json>): TextRow[] {
 // the existing ShapeForm can render it unchanged, section by section.
 export function filterOtherContent(key: string, value: Json): Json | undefined {
   if (isImageObject(key, value)) return value;
+  if (typeof value === "string" && isImagePathString(key, value)) return value;
   if (Array.isArray(value)) return value;
   if (value && typeof value === "object") {
     const out: Record<string, Json> = {};

@@ -33,12 +33,19 @@ export type Json = string | number | boolean | Json[] | { [key: string]: Json };
 // "bodyHtml" → "Body", "wifiRows" → "Wifi Rows", "igLabel" → "Ig Label"
 export const humanize = (key: string) =>
   key
+    .replace(/Src$/, "")
     .replace(/Html$/, "")
     .replace(/[-_]/g, " ")
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .replace(/^./, (c) => c.toUpperCase());
 
 const isHtmlKey = (key: string) => /Html$/.test(key);
+
+const IMAGE_EXT_RE = /\.(avif|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
+const IMAGE_KEY_RE = /(^image$|image|photo|cover|poster|thumbnail|avatar|heroSrc$|ogImage$|Src$)/i;
+
+export const isImagePathString = (key: string, value: string) =>
+  IMAGE_EXT_RE.test(value) || IMAGE_KEY_RE.test(key);
 
 export const isImageObject = (key: string, value: Json): value is { src: string; alt: string } =>
   key === "image" &&
@@ -48,8 +55,19 @@ export const isImageObject = (key: string, value: Json): value is { src: string;
   typeof (value as Record<string, Json>).src === "string" &&
   typeof (value as Record<string, Json>).alt === "string";
 
-const previewUrl = (src: string, mediaBaseUrl: string) =>
-  /^https?:\/\//.test(src) || src.startsWith("/") ? src : mediaBaseUrl + src;
+const siteBaseUrl = (
+  process.env.NEXT_PUBLIC_COZE_CLIENT_SITE_URL || "https://www.coze.care"
+).replace(/\/+$/, "");
+
+const previewUrl = (src: string, mediaBaseUrl: string) => {
+  if (!src) return "";
+  if (/^https?:\/\//.test(src)) return src;
+  if (src.startsWith("/pages/")) return mediaBaseUrl + src.replace(/^\/pages\//, "");
+  if (src.startsWith("/")) return `${siteBaseUrl}${src}`;
+  return mediaBaseUrl + src;
+};
+
+const imageLabel = (src: string) => src.split(/[/?#]/).filter(Boolean).pop() || "No image selected";
 
 type Ctx = {
   page: string;
@@ -105,6 +123,100 @@ function StringField({
         return typeof reference === "string" && reference !== "" && reference !== value ? (
           <p className="text-[11px] leading-snug text-muted-foreground/80">
             <span className="font-medium">EN:</span> {reference}
+          </p>
+        ) : null;
+      })()}
+    </div>
+  );
+}
+
+function ImagePathField({
+  fieldKey,
+  value,
+  path,
+  ctx,
+}: {
+  fieldKey: string;
+  value: string;
+  path: (string | number)[];
+  ctx: Ctx;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch(`/api/cms/guest-pages/${ctx.page}/media`, {
+        method: "POST",
+        body: formData,
+      });
+      const json = await response.json();
+      if (json.status !== "success") {
+        toast.error(json.message || "Upload failed.");
+        return;
+      }
+      ctx.onChange(path, `/pages/${json.data.key}`);
+      toast.success("Image uploaded — remember to save.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{humanize(fieldKey)}</Label>
+      <div className="overflow-hidden rounded-md border border-border bg-secondary/30">
+        <div className="aspect-[16/9] bg-muted">
+          {value ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewUrl(value, ctx.mediaBaseUrl)}
+              alt={humanize(fieldKey)}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+              No image selected
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2 border-t border-border bg-card px-2 py-2">
+          <ImageIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
+            {imageLabel(value)}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="shrink-0 gap-1"
+            disabled={uploading}
+            onClick={() => fileRef.current?.click()}
+          >
+            <Upload className="h-3 w-3" />
+            {uploading ? "Uploading…" : value ? "Replace" : "Upload"}
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleUpload(file);
+              e.target.value = "";
+            }}
+          />
+        </div>
+      </div>
+      {(() => {
+        const reference = getAtPath(ctx.reference, path);
+        return typeof reference === "string" && reference !== "" && reference !== value ? (
+          <p className="text-[11px] leading-snug text-muted-foreground/80">
+            <span className="font-medium">EN:</span> {imageLabel(reference)}
           </p>
         ) : null;
       })()}
@@ -207,6 +319,9 @@ function ShapeNode({
   depth: number;
 }) {
   if (typeof value === "string") {
+    if (isImagePathString(fieldKey, value)) {
+      return <ImagePathField fieldKey={fieldKey} value={value} path={path} ctx={ctx} />;
+    }
     return <StringField fieldKey={fieldKey} value={value} path={path} ctx={ctx} />;
   }
 
