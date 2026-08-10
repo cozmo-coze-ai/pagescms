@@ -17,6 +17,13 @@ import { ResetPasswordEmailTemplate } from "@/components/email/reset-password";
 export const auth = betterAuth({
   baseURL: getBaseUrl(),
   secret: (process.env.AUTH_SECRET || process.env.BETTER_AUTH_SECRET) as string,
+  // In dev, `next dev` falls back to 3001/3002/... whenever 3000 is taken, so a
+  // baseURL-only origin allowlist rejects every sign-in with "Invalid origin".
+  // Trust any localhost port locally; production stays on the default (baseURL).
+  trustedOrigins:
+    process.env.NODE_ENV === "production"
+      ? []
+      : ["http://localhost:*", "http://127.0.0.1:*"],
   emailAndPassword: {
     enabled: true,
     // Self-service "forgot password": better-auth generates the token and

@@ -27,33 +27,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+// Pure helpers live in lib/field-format.ts (no React/CSS) so the registry
+// and sheet modules can import them without pulling in this editor bundle.
+// Re-exported here for the existing importers of shape-form.
+import {
+  humanize,
+  isImageObject,
+  isImagePathString,
+  type Json,
+} from "@/lib/field-format";
 
-export type Json = string | number | boolean | Json[] | { [key: string]: Json };
-
-// "bodyHtml" → "Body", "wifiRows" → "Wifi Rows", "igLabel" → "Ig Label"
-export const humanize = (key: string) =>
-  key
-    .replace(/Src$/, "")
-    .replace(/Html$/, "")
-    .replace(/[-_]/g, " ")
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/^./, (c) => c.toUpperCase());
+export { humanize, isImageObject, isImagePathString };
+export type { Json };
 
 const isHtmlKey = (key: string) => /Html$/.test(key);
-
-const IMAGE_EXT_RE = /\.(avif|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
-const IMAGE_KEY_RE = /(^image$|image|photo|cover|poster|thumbnail|avatar|heroSrc$|ogImage$|Src$)/i;
-
-export const isImagePathString = (key: string, value: string) =>
-  IMAGE_EXT_RE.test(value) || IMAGE_KEY_RE.test(key);
-
-export const isImageObject = (key: string, value: Json): value is { src: string; alt: string } =>
-  key === "image" &&
-  typeof value === "object" &&
-  value !== null &&
-  !Array.isArray(value) &&
-  typeof (value as Record<string, Json>).src === "string" &&
-  typeof (value as Record<string, Json>).alt === "string";
 
 const siteBaseUrl = (
   process.env.NEXT_PUBLIC_COZE_CLIENT_SITE_URL || "https://www.coze.care"

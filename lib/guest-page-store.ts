@@ -23,7 +23,14 @@ import { db } from "@/db";
 import { cmsGuestPageTable, cmsLanguageTable } from "@/db/schema";
 import { triggerCozeClientDeploy } from "@/lib/content-store";
 import { createHttpError } from "@/lib/api-error";
+import { assertSameShape } from "@/lib/shape-validate";
 import { getSupabaseStorageClient } from "@/lib/supabase-storage";
+// Property-family metadata lives in lib/page-families.ts (client-safe);
+// re-exported here for server-side consumers of the store.
+import { PAGE_FAMILIES, type PageFamilyId } from "@/lib/page-families";
+
+export { PAGE_FAMILIES };
+export type { PageFamilyId };
 
 export const PAGES_MEDIA_BUCKET = "pages-media";
 
@@ -35,6 +42,9 @@ export const GUEST_PAGES: {
   label: string;
   description: string;
   multiLang: boolean;
+  // Which index block this page belongs to, and what it is within it.
+  group: PageFamilyId | "experiences";
+  role: "manual" | "facts" | "page";
   // Live coze_client route(s) this page's content feeds, relative to the
   // site root (no language prefix — the editor adds `/<lang>` for
   // non-English). Most pages have exactly one; `manuals` is shared copy
@@ -47,6 +57,8 @@ export const GUEST_PAGES: {
     description:
       "All text on the /gk, /gka and /gkb check-in manuals — shared copy with per-property names filled in automatically.",
     multiLang: true,
+    group: "gk",
+    role: "manual",
     previewPaths: [
       { label: "Kelly", path: "/gk" },
       { label: "Ananda", path: "/gka" },
@@ -58,6 +70,8 @@ export const GUEST_PAGES: {
     label: "Hanbok Photo Shoot",
     description: "The /hanbok-photo-shoot experience page — pricing, inclusions, rental info and photos.",
     multiLang: true,
+    group: "experiences",
+    role: "page",
     previewPaths: [{ label: "", path: "/hanbok-photo-shoot" }],
   },
   {
@@ -65,6 +79,8 @@ export const GUEST_PAGES: {
     label: "COZE Celebration",
     description: "The /celebration party-styling page — packages, add-ons, notes and photos.",
     multiLang: true,
+    group: "experiences",
+    role: "page",
     previewPaths: [{ label: "", path: "/celebration" }],
   },
   {
@@ -72,6 +88,8 @@ export const GUEST_PAGES: {
     label: "Ananda — property facts",
     description: "Unit number, WiFi network & password and photo paths for /gka. Same in every language.",
     multiLang: false,
+    group: "gk",
+    role: "facts",
     previewPaths: [{ label: "", path: "/gka" }],
   },
   {
@@ -79,6 +97,8 @@ export const GUEST_PAGES: {
     label: "Prana — property facts",
     description: "Unit number, WiFi network & password and photo paths for /gkb. Same in every language.",
     multiLang: false,
+    group: "gk",
+    role: "facts",
     previewPaths: [{ label: "", path: "/gkb" }],
   },
   {
@@ -87,6 +107,8 @@ export const GUEST_PAGES: {
     description:
       "All text on the /ht, /hta and /htb Haebangchon check-in manuals — shared copy (incl. the Wellness & Rooftop section) with per-property names filled in automatically.",
     multiLang: true,
+    group: "ht",
+    role: "manual",
     previewPaths: [
       { label: "HT", path: "/ht" },
       { label: "HTA", path: "/hta" },
@@ -98,6 +120,8 @@ export const GUEST_PAGES: {
     label: "COZE HT — property facts",
     description: "Unit label, WiFi network & password and photo paths for /ht. Same in every language.",
     multiLang: false,
+    group: "ht",
+    role: "facts",
     previewPaths: [{ label: "", path: "/ht" }],
   },
   {
@@ -105,6 +129,8 @@ export const GUEST_PAGES: {
     label: "COZE HTA — property facts",
     description: "Unit label, WiFi network & password and photo paths for /hta. Same in every language.",
     multiLang: false,
+    group: "ht",
+    role: "facts",
     previewPaths: [{ label: "", path: "/hta" }],
   },
   {
@@ -112,6 +138,8 @@ export const GUEST_PAGES: {
     label: "COZE HTB — property facts",
     description: "Unit label, WiFi network & password and photo paths for /htb. Same in every language.",
     multiLang: false,
+    group: "ht",
+    role: "facts",
     previewPaths: [{ label: "", path: "/htb" }],
   },
 ];
@@ -178,56 +206,19 @@ const getGuestPage = async (page: string, lang: string) => {
   };
 };
 
-// ── structural validation ──
-
-const isPlainObject = (v: unknown): v is Record<string, unknown> =>
-  typeof v === "object" && v !== null && !Array.isArray(v);
-
-// Throws with a readable path when `next` deviates from `current`'s shape.
-const assertSameShape = (current: unknown, next: unknown, path: string) => {
-  if (typeof current === "string") {
-    if (typeof next !== "string")
-      throw createHttpError(`Expected text at ${path || "(root)"}.`, 400);
-    return;
-  }
-  if (Array.isArray(current)) {
-    if (!Array.isArray(next))
-      throw createHttpError(`Expected a list at ${path || "(root)"}.`, 400);
-    if (current.length === 0) return; // no template item to check against
-    for (let i = 0; i < next.length; i++) {
-      assertSameShape(current[0], next[i], `${path}[${i}]`);
-    }
-    return;
-  }
-  if (isPlainObject(current)) {
-    if (!isPlainObject(next))
-      throw createHttpError(`Expected a group of fields at ${path || "(root)"}.`, 400);
-    const currentKeys = Object.keys(current);
-    const nextKeys = new Set(Object.keys(next));
-    for (const key of currentKeys) {
-      if (!nextKeys.has(key))
-        throw createHttpError(`Missing field "${path ? `${path}.` : ""}${key}".`, 400);
-    }
-    for (const key of nextKeys) {
-      if (!currentKeys.includes(key))
-        throw createHttpError(`Unknown field "${path ? `${path}.` : ""}${key}".`, 400);
-    }
-    for (const key of currentKeys) {
-      assertSameShape(current[key], (next as Record<string, unknown>)[key], path ? `${path}.${key}` : key);
-    }
-    return;
-  }
-  // Non-string scalars (numbers/booleans) don't occur in guest-page dicts
-  // today; if one appears, require exact type match so nothing silently morphs.
-  if (typeof next !== typeof current)
-    throw createHttpError(`Unexpected value type at ${path || "(root)"}.`, 400);
-};
+// Structural validation (assertSameShape) lives in lib/shape-validate.ts —
+// pure, so it can be shared/tested without this server graph.
 
 const saveGuestPage = async (
   page: string,
   lang: string,
   fields: unknown,
   userId: string,
+  options?: {
+    // Quick-updates saves touch one field, not the whole document — that is
+    // not a translation review, so the "needs review" flag must survive.
+    keepMachineTranslated?: boolean;
+  },
 ) => {
   const existing = await getGuestPage(page, lang);
   if (!existing)
@@ -240,8 +231,9 @@ const saveGuestPage = async (
     .set({
       fields: fields as Record<string, unknown>,
       // A human just touched this row — it is no longer a raw machine
-      // translation awaiting review (Plans.md Phase 5 contract).
-      machineTranslated: false,
+      // translation awaiting review (Plans.md Phase 5 contract), unless the
+      // caller asked to preserve review status (quick single-field edits).
+      machineTranslated: options?.keepMachineTranslated ? existing.machineTranslated : false,
       updatedAt: new Date(),
       updatedBy: userId,
     })

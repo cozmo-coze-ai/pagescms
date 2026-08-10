@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUser } from "@/contexts/user-context";
 import { cn } from "@/lib/utils";
+import { getFamilyForPage } from "@/lib/page-families";
+import { buildPreviewUrl } from "@/lib/preview-url";
 
 /**
  * Guest-page editor (Plans.md Phase 2). Multi-lang pages get a
@@ -36,15 +38,6 @@ type PageMeta = {
   multiLang: boolean;
   previewPaths: { label: string; path: string }[];
 };
-
-// coze_client puts the language code in the path for everything but English
-// (/celebration vs /ko/celebration) — see coze_client/src/pages/[lang]/*.
-const siteBaseUrl = (process.env.NEXT_PUBLIC_COZE_CLIENT_SITE_URL || "https://www.coze.care").replace(
-  /\/+$/,
-  "",
-);
-const buildPreviewUrl = (path: string, lang: string) =>
-  `${siteBaseUrl}${lang === "en" ? "" : `/${lang}`}${path}`;
 
 // Classifies the filtered "other content" tree so the panel heading matches
 // what's actually in it — manuals has no images, hanbok has both, etc.
@@ -242,6 +235,11 @@ export default function SitePageEditor() {
     router.replace(`/cms/site-pages/${page}?lang=${lang}`, { scroll: false });
   };
 
+  // When this page belongs to a property family, offer sideways links to the
+  // family's manual, its facts sheet, and each sibling property's editor.
+  const family = getFamilyForPage(page);
+  const isFactsPage = meta ? !meta.multiLang && family?.properties.some((p) => p.page === page) : false;
+
   return (
     <div className={cn("mx-auto space-y-4", meta?.multiLang ? "max-w-[1400px]" : "max-w-2xl")}>
       <DocumentTitle title={meta ? meta.label : "Site pages"} />
@@ -257,6 +255,43 @@ export default function SitePageEditor() {
           </Link>
           <h1 className="font-serif text-xl tracking-tight">{meta?.label ?? "…"}</h1>
           {meta && <p className="mt-0.5 text-xs text-muted-foreground">{meta.description}</p>}
+          {meta && family && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+              <span className="font-medium uppercase tracking-wide">{family.shortLabel}:</span>
+              {page !== family.manualPage && (
+                <Link href={`/cms/site-pages/${family.manualPage}`} className="hover:text-foreground hover:underline">
+                  Manual
+                </Link>
+              )}
+              <Link
+                href={`/cms/site-pages/facts/${family.id}`}
+                className="hover:text-foreground hover:underline"
+              >
+                Facts sheet
+              </Link>
+              {family.properties
+                .filter((property) => property.page !== page)
+                .map((property) => (
+                  <Link
+                    key={property.page}
+                    href={`/cms/site-pages/${property.page}`}
+                    className="hover:text-foreground hover:underline"
+                  >
+                    {property.label}
+                  </Link>
+                ))}
+            </div>
+          )}
+          {meta && isFactsPage && (
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              Tip: edit WiFi &amp; door codes for every {family?.shortLabel} property at once in
+              the{" "}
+              <Link href={`/cms/site-pages/facts/${family?.id}`} className="text-primary hover:underline">
+                facts sheet
+              </Link>
+              .
+            </p>
+          )}
           {meta && languages.length > 0 && (
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
               {meta.previewPaths.map((entry) => (
@@ -305,6 +340,7 @@ export default function SitePageEditor() {
             fieldsByLang={fieldsByLang}
             machineTranslatedByLang={machineTranslatedByLang}
             onCellChange={handleCellChange}
+            readonly={!canWrite}
           />
 
           {otherFields && Object.keys(otherFields).length > 0 && (
