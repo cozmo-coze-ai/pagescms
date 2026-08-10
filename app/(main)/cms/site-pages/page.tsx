@@ -170,13 +170,26 @@ export default function SitePagesPage() {
                 <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {family.label}
                 </h2>
+                <Link
+                  href={`/cms/site-pages/building/${family.id}`}
+                  className="flex items-center gap-3 rounded-lg border border-primary/40 bg-primary/5 p-3 transition-colors hover:border-primary/70"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-medium">Per-property manual — each unit side by side</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Give {family.manualProperties.map((p) => p.label).join(", ")} their own wording for
+                      any field, in every language. Unchanged fields inherit the shared copy.
+                    </p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </Link>
                 {manual && <PageCard page={manual} languages={languages} />}
                 <Link
                   href={`/cms/site-pages/facts/${family.id}`}
                   className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/40"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-medium">Property facts — edit side by side</p>
+                    <p className="text-[13px] font-medium">Property facts — WiFi, door codes, unit</p>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
                       WiFi, door codes, unit numbers &amp; arrival links for{" "}
                       {family.properties.map((p) => p.label).join(", ")} in one sheet.

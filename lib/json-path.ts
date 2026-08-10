@@ -4,7 +4,11 @@
  * same helpers work for "arrival.checkInValue" and "packages[0].price".
  */
 
-export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+// Single shared JSON type across the CMS (defined in lib/field-format.ts) so
+// values flow between the sheets, the registry and these path helpers without
+// structural-mismatch casts.
+export type { Json } from "@/lib/field-format";
+import type { Json } from "@/lib/field-format";
 
 export type JsonPath = (string | number)[];
 
@@ -49,6 +53,47 @@ export const resizeArrayAtPath = (
     return setAtPath(doc, path, [...current, blankStrings(structuredClone(current[0]))]);
   }
   return setAtPath(doc, path, current.slice(0, nextLength));
+};
+
+// Immutable deep set that CREATES intermediate objects along a string-key
+// path — for sparse override documents that start as {} and grow one field at
+// a time. Only object nesting is created (override rows are string leaves
+// reached through object keys); an existing non-object at a step is replaced.
+export const setAtPathCreate = (root: Json, path: JsonPath, value: Json): Json => {
+  if (path.length === 0) return value;
+  const [head, ...rest] = path;
+  const key = String(head);
+  const base: Record<string, Json> =
+    root && typeof root === "object" && !Array.isArray(root)
+      ? (root as Record<string, Json>)
+      : {};
+  return {
+    ...base,
+    [key]: rest.length === 0 ? value : setAtPathCreate(base[key] ?? {}, rest, value),
+  };
+};
+
+// Immutable delete of the key at `path`, pruning any ancestor object left
+// empty — reverting the last override on a branch collapses it back so an
+// all-reverted document returns to {} (fully inherit from the shared manual).
+export const deleteAtPath = (root: Json, path: JsonPath): Json => {
+  if (path.length === 0 || !root || typeof root !== "object" || Array.isArray(root)) return root;
+  const [head, ...rest] = path;
+  const key = String(head);
+  const record = root as Record<string, Json>;
+  if (!(key in record)) return root;
+  if (rest.length === 0) {
+    const { [key]: _removed, ...remaining } = record;
+    return remaining;
+  }
+  const child = deleteAtPath(record[key], rest);
+  const childEmpty =
+    child && typeof child === "object" && !Array.isArray(child) && Object.keys(child).length === 0;
+  if (childEmpty) {
+    const { [key]: _removed, ...remaining } = record;
+    return remaining;
+  }
+  return { ...record, [key]: child };
 };
 
 // Immutable deep set: clones only the spine along `path`, leaves siblings

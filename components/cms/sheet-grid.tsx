@@ -43,6 +43,7 @@ function SheetCellView({
   tinted,
   isHtml,
   readonly,
+  variant,
   onActivate,
   onChange,
   onMove,
@@ -54,12 +55,17 @@ function SheetCellView({
   tinted: boolean;
   isHtml: boolean;
   readonly: boolean;
+  variant?: CellVariant;
   onActivate: () => void;
   onChange: (next: string) => void;
   onMove: (direction: "up" | "down" | "left" | "right") => void;
   onClose: () => void;
   registerRef: (el: HTMLTextAreaElement | null) => void;
 }) {
+  // Inherited cells (building sheet: a property showing the shared value it
+  // hasn't overridden) render muted; overridden cells get a left accent bar.
+  const inherited = variant === "inherited";
+  const overridden = variant === "overridden";
   if (value === undefined) {
     return (
       <div
@@ -76,7 +82,8 @@ function SheetCellView({
         className={cn(
           "whitespace-pre-wrap break-words px-2 py-1.5 text-[13px] leading-snug",
           tinted && "bg-amber-50/60",
-          value === "" && "italic text-muted-foreground/70",
+          overridden && "border-l-2 border-l-primary",
+          (value === "" || inherited) && "italic text-muted-foreground/70",
           isHtml && value !== "" && "font-mono text-[12px]",
         )}
       >
@@ -119,11 +126,13 @@ function SheetCellView({
     <button
       type="button"
       onClick={onActivate}
+      title={inherited ? "Inherited from the shared building copy — click to set for this property" : undefined}
       className={cn(
         "block w-full whitespace-pre-wrap break-words px-2 py-1.5 text-left text-[13px] leading-snug outline-none",
         "hover:bg-secondary/50 focus-visible:bg-secondary/50",
         tinted && "bg-amber-50/60",
-        value === "" && "italic text-muted-foreground/70",
+        overridden && "border-l-2 border-l-primary",
+        (value === "" || inherited) && "italic text-muted-foreground/70",
         isHtml && value !== "" && "font-mono text-[12px]",
       )}
     >
@@ -132,11 +141,16 @@ function SheetCellView({
   );
 }
 
+// Per-cell display state, e.g. in the building sheet a property cell showing
+// the inherited shared value vs. its own override.
+export type CellVariant = "inherited" | "overridden";
+
 export function SheetGrid({
   columns,
   sections,
   getValue,
   onChange,
+  getCellVariant,
   readonly = false,
   maxHeightClass = "max-h-[65vh]",
 }: {
@@ -144,6 +158,7 @@ export function SheetGrid({
   sections: SheetSection[];
   getValue: (columnId: string, rowId: string) => string | undefined;
   onChange: (columnId: string, rowId: string, value: string) => void;
+  getCellVariant?: (columnId: string, rowId: string) => CellVariant | undefined;
   readonly?: boolean;
   maxHeightClass?: string;
 }) {
@@ -306,6 +321,7 @@ export function SheetGrid({
                             tinted={Boolean(column.tinted) && !column.pinned}
                             isHtml={Boolean(row.isHtml)}
                             readonly={readonly}
+                            variant={getCellVariant?.(column.id, row.id)}
                             onActivate={() => setActiveCell({ row: rowIndex, col: colIndex })}
                             onChange={(next) => onChange(column.id, row.id, next)}
                             onMove={move}

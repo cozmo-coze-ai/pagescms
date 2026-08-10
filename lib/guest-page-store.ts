@@ -23,11 +23,11 @@ import { db } from "@/db";
 import { cmsGuestPageTable, cmsLanguageTable } from "@/db/schema";
 import { triggerCozeClientDeploy } from "@/lib/content-store";
 import { createHttpError } from "@/lib/api-error";
-import { assertSameShape } from "@/lib/shape-validate";
+import { assertSameShape, assertSubsetShape } from "@/lib/shape-validate";
 import { getSupabaseStorageClient } from "@/lib/supabase-storage";
 // Property-family metadata lives in lib/page-families.ts (client-safe);
 // re-exported here for server-side consumers of the store.
-import { PAGE_FAMILIES, type PageFamilyId } from "@/lib/page-families";
+import { PAGE_FAMILIES, sharedManualForOverride, type PageFamilyId } from "@/lib/page-families";
 
 export { PAGE_FAMILIES };
 export type { PageFamilyId };
@@ -224,7 +224,19 @@ const saveGuestPage = async (
   if (!existing)
     throw createHttpError(`No content for page "${page}" in language "${lang}".`, 404);
 
-  assertSameShape(existing.fields, fields, "");
+  // Per-property manual override pages (`<slug>-manual`) hold a SPARSE subset
+  // of the shared building manual — only the fields that property has diverged.
+  // Validate against the shared manual's shape (not the override's own prior
+  // shape, which grows/shrinks as fields are overridden or reverted).
+  const sharedManual = sharedManualForOverride(page);
+  if (sharedManual) {
+    const template = await getGuestPage(sharedManual, lang);
+    if (!template)
+      throw createHttpError(`Missing shared manual "${sharedManual}" (${lang}) to validate against.`, 500);
+    assertSubsetShape(template.fields, fields, "");
+  } else {
+    assertSameShape(existing.fields, fields, "");
+  }
 
   const [row] = await db
     .update(cmsGuestPageTable)

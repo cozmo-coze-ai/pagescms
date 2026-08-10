@@ -258,9 +258,15 @@ export default function SitePageEditor() {
           {meta && family && (
             <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
               <span className="font-medium uppercase tracking-wide">{family.shortLabel}:</span>
+              <Link
+                href={`/cms/site-pages/building/${family.id}`}
+                className="text-primary hover:underline"
+              >
+                Per-property manual
+              </Link>
               {page !== family.manualPage && (
                 <Link href={`/cms/site-pages/${family.manualPage}`} className="hover:text-foreground hover:underline">
-                  Manual
+                  Shared manual
                 </Link>
               )}
               <Link

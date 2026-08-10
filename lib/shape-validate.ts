@@ -106,3 +106,64 @@ export const assertSameShape = (current: unknown, next: unknown, path: string) =
   if (typeof next !== typeof current)
     throw createHttpError(`Unexpected value type at ${path || "(root)"}.`, 400);
 };
+
+// Like assertSameShape, but `next` may OMIT any key — used for per-property
+// manual OVERRIDE documents, which are sparse: they carry only the fields a
+// property has diverged from its building's shared manual, and every other
+// field inherits at render (coze_client's mergeFallback). The `template` is
+// the shared manual doc, so an override may never introduce a key the shared
+// manual lacks or change a leaf's type — only supply a subset of it.
+export const assertSubsetShape = (template: unknown, next: unknown, path: string) => {
+  if (typeof template === "string") {
+    if (typeof next !== "string")
+      throw createHttpError(`Expected text at ${path || "(root)"}.`, 400);
+    return;
+  }
+  if (Array.isArray(template)) {
+    if (!Array.isArray(next))
+      throw createHttpError(`Expected a list at ${path || "(root)"}.`, 400);
+    if (template.length === 0) return; // no template item to check against
+    const { objectItems, template: itemTemplate } = analyzeArrayItems(template);
+    for (let i = 0; i < next.length; i++) {
+      if (objectItems.length > 0) {
+        // Override list items may omit optional keys; enforce no unknown keys
+        // and matching types, but not the required-key set (an override item
+        // supplies only what it changes).
+        assertArrayItemSubset(itemTemplate, next[i], `${path}[${i}]`);
+      } else {
+        assertSubsetShape(template[0], next[i], `${path}[${i}]`);
+      }
+    }
+    return;
+  }
+  if (isPlainObject(template)) {
+    if (!isPlainObject(next))
+      throw createHttpError(`Expected a group of fields at ${path || "(root)"}.`, 400);
+    const templateKeys = new Set(Object.keys(template));
+    for (const key of Object.keys(next)) {
+      if (!templateKeys.has(key))
+        throw createHttpError(`Unknown field "${path ? `${path}.` : ""}${key}".`, 400);
+      assertSubsetShape(template[key], (next as Record<string, unknown>)[key], path ? `${path}.${key}` : key);
+    }
+    // Missing keys are fine — they inherit from the shared manual.
+    return;
+  }
+  if (typeof next !== typeof template)
+    throw createHttpError(`Unexpected value type at ${path || "(root)"}.`, 400);
+};
+
+// Array-item variant for subset validation: no unknown keys, types must match,
+// but keys may be omitted (unlike assertArrayItem, which enforces `required`).
+const assertArrayItemSubset = (
+  template: Record<string, unknown>,
+  next: unknown,
+  path: string,
+) => {
+  if (!isPlainObject(next))
+    throw createHttpError(`Expected a group of fields at ${path || "(root)"}.`, 400);
+  for (const key of Object.keys(next)) {
+    if (!(key in template))
+      throw createHttpError(`Unknown field "${path ? `${path}.` : ""}${key}".`, 400);
+    assertSubsetShape(template[key], next[key], path ? `${path}.${key}` : key);
+  }
+};
