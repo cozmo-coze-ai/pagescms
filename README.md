@@ -20,17 +20,3 @@ email + password, and the editing UI is the custom "studio" under `/cms`.
 - **Auth**: better-auth, email + password, invite-only sign-up. Roles
   (`admin` | `editor`) live on the user row; `ADMIN_EMAILS` is the
   bootstrap-owner escape hatch. Managed from `/cms/settings`.
-
-## Development
-
-```
-npm install
-npm run dev
-```
-
-Environment variables: see `.env.local.example`. Deployment specifics and
-operational gotchas: see `DEPLOYMENT-COZE.md`.
-
-## License
-
-MIT — retains the license of the original Pages CMS project.
