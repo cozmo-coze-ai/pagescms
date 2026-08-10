@@ -198,10 +198,11 @@ export default function BuildingSheetPage() {
             <ArrowLeft className="h-3 w-3" />
             Site pages
           </Link>
-          <h1 className="font-serif text-xl tracking-tight">{family.shortLabel} — per-property manual</h1>
+          <h1 className="font-serif text-xl tracking-tight">{family.shortLabel} — check-in guide</h1>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Every property in its own column. A muted cell inherits the Shared copy; type to give that
-            property its own wording. Editing Shared changes it for all that haven&apos;t diverged.
+            The <b>All units</b> column is what every unit shows. Want one unit to say something
+            different? Type in that unit&apos;s column. Grey text means &ldquo;same as all units.&rdquo;
+            Pick a language with the buttons below.
           </p>
         </div>
         {canWrite && (
@@ -264,12 +265,11 @@ export default function BuildingSheetPage() {
             readonly={!canWrite}
           />
           <p className="text-[11px] text-muted-foreground">
-            Lists (e.g. walk-in steps) and photos stay shared per building. WiFi, door codes and unit
-            numbers are edited in the{" "}
+            WiFi, door codes and unit numbers are on the{" "}
             <Link href={`/cms/site-pages/facts/${family.id}`} className="text-primary hover:underline">
-              property facts sheet
-            </Link>
-            .
+              WiFi &amp; door codes
+            </Link>{" "}
+            page. Step-by-step photo lists stay the same for the whole building.
           </p>
         </>
       )}

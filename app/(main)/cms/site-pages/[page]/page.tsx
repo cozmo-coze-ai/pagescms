@@ -262,18 +262,13 @@ export default function SitePageEditor() {
                 href={`/cms/site-pages/building/${family.id}`}
                 className="text-primary hover:underline"
               >
-                Per-property manual
+                Check-in guide
               </Link>
-              {page !== family.manualPage && (
-                <Link href={`/cms/site-pages/${family.manualPage}`} className="hover:text-foreground hover:underline">
-                  Shared manual
-                </Link>
-              )}
               <Link
                 href={`/cms/site-pages/facts/${family.id}`}
                 className="hover:text-foreground hover:underline"
               >
-                Facts sheet
+                WiFi &amp; door codes
               </Link>
               {family.properties
                 .filter((property) => property.page !== page)
@@ -290,12 +285,11 @@ export default function SitePageEditor() {
           )}
           {meta && isFactsPage && (
             <p className="mt-1.5 text-[11px] text-muted-foreground">
-              Tip: edit WiFi &amp; door codes for every {family?.shortLabel} property at once in
-              the{" "}
+              Tip: change WiFi &amp; door codes for every {family?.shortLabel} unit in one place on the{" "}
               <Link href={`/cms/site-pages/facts/${family?.id}`} className="text-primary hover:underline">
-                facts sheet
-              </Link>
-              .
+                WiFi &amp; door codes
+              </Link>{" "}
+              page.
             </p>
           )}
           {meta && languages.length > 0 && (

@@ -51,7 +51,7 @@ export function BuildingSheet({
   }, [rows]);
 
   const columns: SheetColumn[] = [
-    { id: SHARED_COL, label: "Shared", pinned: true },
+    { id: SHARED_COL, label: "All units", pinned: true },
     ...family.manualProperties.map((p) => ({ id: p.slug, label: p.label })),
   ];
 
@@ -86,6 +86,8 @@ export function BuildingSheet({
         if (columnId === SHARED_COL) return undefined;
         const row = rowsById.get(rowId);
         if (!row) return undefined;
+        // "overridden" = this unit has its own wording (accent bar); "inherited"
+        // = grey, showing the shared "All units" text until someone changes it.
         return typeof overrideAt(columnId, row.path) === "string" ? "overridden" : "inherited";
       }}
       onChange={(columnId, rowId, value) => {

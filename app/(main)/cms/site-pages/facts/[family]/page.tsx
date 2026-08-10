@@ -147,11 +147,11 @@ export default function FamilyFactsPage() {
             Site pages
           </Link>
           <h1 className="font-serif text-xl tracking-tight">
-            {family.shortLabel} — property facts
+            {family.shortLabel} — WiFi &amp; door codes
           </h1>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Every property side by side: unit numbers, WiFi, door codes, arrival links. Photos
-            live in each property&apos;s own editor.
+            Each unit in its own column. Click a box to change it. WiFi names, passwords, door
+            codes and unit numbers.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {family.properties.map((property) => (
@@ -191,8 +191,7 @@ export default function FamilyFactsPage() {
       ) : (
         <>
           <p className="text-xs text-muted-foreground">
-            Click a cell to edit it. Tab moves across properties, Enter moves down a row. A
-            &ldquo;—&rdquo; cell means that property doesn&apos;t have this field.
+            Click a box to edit it. A &ldquo;—&rdquo; box means that unit doesn&apos;t use that item.
           </p>
           <FamilyFactsSheet
             family={family}

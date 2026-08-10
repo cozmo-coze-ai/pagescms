@@ -126,7 +126,7 @@ function SheetCellView({
     <button
       type="button"
       onClick={onActivate}
-      title={inherited ? "Inherited from the shared building copy — click to set for this property" : undefined}
+      title={inherited ? "Same as all units — click to change it just for this unit" : undefined}
       className={cn(
         "block w-full whitespace-pre-wrap break-words px-2 py-1.5 text-left text-[13px] leading-snug outline-none",
         "hover:bg-secondary/50 focus-visible:bg-secondary/50",
