@@ -4,11 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, Images } from "lucide-react";
 import { DocumentTitle } from "@/components/document-title";
 import { DEPLOY_STATUS_REFRESH_EVENT } from "@/components/cms/deploy-status";
 import { AiJsonAssistant } from "@/components/cms/ai-json-assistant";
-import { ShapeForm, isImageObject, type Json } from "@/components/cms/shape-form";
+import { ShapeForm, type Json } from "@/components/cms/shape-form";
 import {
   SitePageSheet,
   filterOtherContent,
@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useUser } from "@/contexts/user-context";
 import { cn } from "@/lib/utils";
 import { getFamilyForPage } from "@/lib/page-families";
+import type { JsonPath } from "@/lib/json-path";
 import { buildPreviewUrl } from "@/lib/preview-url";
 
 /**
@@ -27,8 +28,8 @@ import { buildPreviewUrl } from "@/lib/preview-url";
  * spreadsheet-style grid — one row per text field, one column per language,
  * English pinned first — so translations can be scanned and edited
  * side-by-side instead of one language-tab at a time. Images and repeatable
- * groups (arrays) don't fit a grid cell, so they render below via the
- * existing shape-driven form, one language at a time. Single-language pages
+ * groups (arrays) become numbered sheet rows. Image uploads and list
+ * add/remove controls stay in a secondary view. Single-language pages
  * (multiLang: false, e.g. config rows) keep the plain form.
  */
 
@@ -39,24 +40,6 @@ type PageMeta = {
   multiLang: boolean;
   previewPaths: { label: string; path: string }[];
 };
-
-// Classifies the filtered "other content" tree so the panel heading matches
-// what's actually in it — manuals has no images, hanbok has both, etc.
-function describeOtherContent(value: Json, key = ""): { hasImages: boolean; hasLists: boolean } {
-  if (isImageObject(key, value)) return { hasImages: true, hasLists: false };
-  if (Array.isArray(value)) return { hasImages: false, hasLists: true };
-  if (value && typeof value === "object") {
-    let hasImages = false;
-    let hasLists = false;
-    for (const [k, v] of Object.entries(value)) {
-      const child = describeOtherContent(v, k);
-      hasImages ||= child.hasImages;
-      hasLists ||= child.hasLists;
-    }
-    return { hasImages, hasLists };
-  }
-  return { hasImages: false, hasLists: false };
-}
 
 export default function SitePageEditor() {
   const { canWrite } = useUser();
@@ -78,11 +61,15 @@ export default function SitePageEditor() {
   const [dirtyLangs, setDirtyLangs] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [otherLang, setOtherLang] = useState(() => searchParams.get("lang") ?? "en");
+  const [editorView, setEditorView] = useState<"text" | "media">(() =>
+    searchParams.get("lang") ? "media" : "text",
+  );
 
   // Deep-linking a language (e.g. from an email or a bookmark) should land
   // on that language's tab in the images/lists panel below the sheet.
   useEffect(() => {
     setOtherLang(searchParams.get("lang") ?? "en");
+    setEditorView(searchParams.get("lang") ? "media" : "text");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
@@ -139,7 +126,7 @@ export default function SitePageEditor() {
     loadContent();
   }, [loadContent]);
 
-  const handleCellChange = (lang: string, path: string[], value: string) => {
+  const handleCellChange = (lang: string, path: JsonPath, value: string) => {
     setFieldsByLang((prev) => {
       if (!prev) return prev;
       const next = structuredClone(prev);
@@ -222,14 +209,6 @@ export default function SitePageEditor() {
     const filtered = filterOtherContent("", fieldsByLang[otherLang]);
     return (filtered as Record<string, Json> | undefined) ?? null;
   }, [fieldsByLang, otherLang]);
-
-  const otherContentLabel = useMemo(() => {
-    if (!otherFields) return "Photos & lists";
-    const { hasImages, hasLists } = describeOtherContent(otherFields);
-    if (hasImages && hasLists) return "Photos & lists";
-    if (hasImages) return "Photos";
-    return "Lists";
-  }, [otherFields]);
 
   const handleOtherLangChange = (lang: string) => {
     setOtherLang(lang);
@@ -361,22 +340,55 @@ export default function SitePageEditor() {
         </div>
       ) : meta?.multiLang ? (
         <>
-          <p className="text-xs text-muted-foreground">
-            Edit text in the table. English stays on the left for reference.
-          </p>
-          <SitePageSheet
-            languages={languages}
-            fieldsByLang={fieldsByLang}
-            machineTranslatedByLang={machineTranslatedByLang}
-            onCellChange={handleCellChange}
-            readonly={!canWrite}
-          />
+          <div className="border-b border-border">
+            <div className="flex items-center gap-5" role="tablist" aria-label="Page editor view">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={editorView === "text"}
+                onClick={() => setEditorView("text")}
+                className={cn(
+                  "-mb-px inline-flex items-center gap-1.5 border-b-2 px-1 py-2 text-xs font-medium transition-colors",
+                  editorView === "text"
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Text
+              </button>
+              {otherFields && Object.keys(otherFields).length > 0 && (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={editorView === "media"}
+                  onClick={() => setEditorView("media")}
+                  className={cn(
+                    "-mb-px inline-flex items-center gap-1.5 border-b-2 px-1 py-2 text-xs font-medium transition-colors",
+                    editorView === "media"
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Images className="h-3.5 w-3.5" />
+                  Media &amp; lists
+                </button>
+              )}
+            </div>
+          </div>
 
-          {otherFields && Object.keys(otherFields).length > 0 && (
-            <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="font-serif text-sm tracking-tight">{otherContentLabel}</h2>
-                <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-border bg-secondary/30 p-1">
+          {editorView === "text" ? (
+            <SitePageSheet
+              languages={languages}
+              fieldsByLang={fieldsByLang}
+              machineTranslatedByLang={machineTranslatedByLang}
+              onCellChange={handleCellChange}
+              readonly={!canWrite}
+            />
+          ) : otherFields && Object.keys(otherFields).length > 0 ? (
+            <div className="space-y-3">
+              <div className="flex justify-end">
+                <div className="flex items-center gap-1 overflow-x-auto rounded-md border border-border bg-secondary/30 p-1">
                   {languages.map((language) => {
                     const active = language.code === otherLang;
                     return (
@@ -385,9 +397,9 @@ export default function SitePageEditor() {
                         type="button"
                         onClick={() => handleOtherLangChange(language.code)}
                         className={cn(
-                          "shrink-0 rounded-md px-3 py-1 text-[13px] transition-colors",
+                          "shrink-0 rounded px-3 py-1 text-[13px] transition-colors",
                           active
-                            ? "bg-secondary font-medium text-foreground"
+                            ? "bg-background font-medium text-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground",
                         )}
                       >
@@ -405,7 +417,7 @@ export default function SitePageEditor() {
                 readonly={!canWrite}
               />
             </div>
-          )}
+          ) : null}
         </>
       ) : (
         <ShapeForm

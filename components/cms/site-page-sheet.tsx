@@ -6,9 +6,8 @@
  * with English pinned first/left as the reference column — a thin wrapper
  * over the shared SheetGrid engine (components/cms/sheet-grid.tsx).
  *
- * Non-text content (images, repeatable card/list groups) doesn't fit a grid
- * cell, so it's filtered out of the sheet and rendered below via the
- * existing shape-driven `ShapeForm`, one language at a time.
+ * Text nested inside repeatable cards/lists is flattened into numbered rows.
+ * The separate media/list view keeps image uploads and add/remove controls.
  */
 
 import { useMemo } from "react";
@@ -23,7 +22,7 @@ import {
   type SheetColumn,
   type SheetSection,
 } from "@/components/cms/sheet-grid";
-import { getAtPath } from "@/lib/json-path";
+import { getAtPath, type JsonPath } from "@/lib/json-path";
 
 export type Language = { code: string; label: string };
 
@@ -31,34 +30,77 @@ type TextRow = {
   id: string;
   sectionKey: string;
   sectionLabel: string;
-  path: string[];
+  path: JsonPath;
   label: string;
   isHtml: boolean;
 };
 
 const isHtmlKey = (key: string) => /Html$/.test(key);
 
-// Walks one language's field tree collecting only plain string leaves —
-// arrays and { src, alt } image objects are left for the panel below.
-export function collectTextRows(fields: Record<string, Json>): TextRow[] {
+const singularize = (label: string) => {
+  if (label.endsWith("ies")) return `${label.slice(0, -3)}y`;
+  if (label.endsWith("xes")) return label.slice(0, -2);
+  if (label.endsWith("s")) return label.slice(0, -1);
+  return label;
+};
+
+const textRowLabel = (path: JsonPath) => {
+  const labels: string[] = [];
+  const segments = path.slice(1);
+  for (let index = 0; index < segments.length; index++) {
+    const segment = segments[index];
+    if (typeof segment === "number") {
+      const parent = String(path[index]);
+      labels.push(`${singularize(humanize(parent))} ${segment + 1}`);
+      continue;
+    }
+    // The following numeric segment names this collection more clearly as
+    // "Package 1" or "Item 2", so don't also render a redundant "Packages".
+    if (typeof segments[index + 1] === "number") continue;
+    labels.push(humanize(segment));
+  }
+  return labels.join(" › ") || humanize(String(path[0]));
+};
+
+// Walks one language's field tree collecting plain guest-facing text. The
+// standalone page editor opts into array traversal so package/card/list copy
+// stays in the sheet; building overrides keep arrays shared and opt out.
+export function collectTextRows(
+  fields: Record<string, Json>,
+  options: { includeArrays?: boolean } = {},
+): TextRow[] {
   const rows: TextRow[] = [];
-  const walk = (value: Json, path: string[], sectionKey: string, sectionLabel: string) => {
+  const walk = (value: Json, path: JsonPath, sectionKey: string, sectionLabel: string) => {
+    const fieldKey = String(path[path.length - 1] ?? "");
     if (typeof value === "string") {
-      if (isImagePathString(path[path.length - 1], value)) return;
+      if (isImagePathString(fieldKey, value)) return;
       rows.push({
-        id: path.join("."),
+        id: path.map(String).join("."),
         sectionKey,
         sectionLabel,
         path,
-        label: path.slice(1).map(humanize).join(" › ") || humanize(path[0]),
-        isHtml: isHtmlKey(path[path.length - 1]),
+        label: textRowLabel(path),
+        isHtml: isHtmlKey(fieldKey),
       });
       return;
     }
-    if (Array.isArray(value)) return;
+    if (isImageObject(fieldKey, value)) {
+      // Alt text is guest-facing copy too. Keep the source path in the media
+      // tab, but make the alt text reviewable beside every language.
+      if (options.includeArrays) {
+        walk(value.alt, [...path, "alt"], sectionKey, sectionLabel);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      if (!options.includeArrays) return;
+      value.forEach((child, index) => {
+        walk(child, [...path, index], sectionKey, sectionLabel);
+      });
+      return;
+    }
     if (value && typeof value === "object") {
       for (const [key, child] of Object.entries(value)) {
-        if (isImageObject(key, child)) continue;
         walk(child, [...path, key], sectionKey, sectionLabel);
       }
     }
@@ -118,7 +160,7 @@ export function SitePageSheet({
   languages: Language[];
   fieldsByLang: Record<string, Record<string, Json>>;
   machineTranslatedByLang: Record<string, boolean>;
-  onCellChange: (lang: string, path: string[], value: string) => void;
+  onCellChange: (lang: string, path: JsonPath, value: string) => void;
   readonly?: boolean;
 }) {
   const en = languages.find((l) => l.code === "en");
@@ -126,7 +168,7 @@ export function SitePageSheet({
   const orderedLanguages = en ? [en, ...otherLanguages] : languages;
 
   const rows = useMemo(
-    () => (fieldsByLang.en ? collectTextRows(fieldsByLang.en) : []),
+    () => (fieldsByLang.en ? collectTextRows(fieldsByLang.en, { includeArrays: true }) : []),
     [fieldsByLang.en],
   );
 
