@@ -154,6 +154,7 @@ export function SheetGrid({
   getCellVariant,
   getSearchText,
   readonly = false,
+  hideSearch = false,
   maxHeightClass = "max-h-[65vh]",
 }: {
   columns: SheetColumn[];
@@ -166,6 +167,9 @@ export function SheetGrid({
   // a string no matter which language tab is open.
   getSearchText?: (rowId: string) => string | undefined;
   readonly?: boolean;
+  // The site-page sheet brings its own search box (shared with the AI
+  // assistant's scope), so the grid's built-in one would be a confusing twin.
+  hideSearch?: boolean;
   maxHeightClass?: string;
 }) {
   const [query, setQuery] = useState("");
@@ -270,6 +274,7 @@ export function SheetGrid({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-1.5">
+        {!hideSearch && (
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -290,6 +295,7 @@ export function SheetGrid({
             </button>
           )}
         </div>
+        )}
         {q && (
           <span className="text-[11px] text-muted-foreground">
             {flatRows.length} field{flatRows.length === 1 ? "" : "s"}

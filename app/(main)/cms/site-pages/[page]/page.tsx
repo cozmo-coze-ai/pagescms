@@ -11,7 +11,9 @@ import { AiJsonAssistant } from "@/components/cms/ai-json-assistant";
 import { ShapeForm, type Json } from "@/components/cms/shape-form";
 import {
   SitePageSheet,
+  collectTextRows,
   filterOtherContent,
+  filterTextRows,
   mergeOtherContent,
   type Language,
 } from "@/components/cms/site-page-sheet";
@@ -64,12 +66,14 @@ export default function SitePageEditor() {
   const [editorView, setEditorView] = useState<"text" | "media">(() =>
     searchParams.get("lang") ? "media" : "text",
   );
+  const [query, setQuery] = useState("");
 
   // Deep-linking a language (e.g. from an email or a bookmark) should land
   // on that language's tab in the images/lists panel below the sheet.
   useEffect(() => {
     setOtherLang(searchParams.get("lang") ?? "en");
     setEditorView(searchParams.get("lang") ? "media" : "text");
+    setQuery("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
@@ -215,25 +219,20 @@ export default function SitePageEditor() {
     router.replace(`/cms/site-pages/${page}?lang=${lang}`, { scroll: false });
   };
 
-  const aiDocuments = useMemo(
-    () =>
-      languages.flatMap((language) => {
-        const fields = fieldsByLang?.[language.code];
-        if (!fields) return [];
-        return [{
-          code: language.code,
-          label: language.label,
-          fields,
-          sourceFields: language.code === "en" ? undefined : fieldsByLang?.en,
-        }];
-      }),
+  // The sheet's rows and search subset, shared with the AI assistant so a
+  // search-narrowed sheet copies (and applies) exactly what's on screen.
+  const rows = useMemo(
+    () => (fieldsByLang?.en ? collectTextRows(fieldsByLang.en, { includeArrays: true }) : []),
+    [fieldsByLang],
+  );
+  const aiLanguages = useMemo(
+    () => languages.filter((language) => fieldsByLang?.[language.code]),
     [fieldsByLang, languages],
   );
-
-  const handleAiApply = (lang: string, next: Record<string, Json>) => {
-    setFieldsByLang((prev) => (prev ? { ...prev, [lang]: next } : prev));
-    setDirtyLangs((prev) => ({ ...prev, [lang]: true }));
-  };
+  const filteredRows = useMemo(
+    () => filterTextRows(rows, query, fieldsByLang ?? {}, aiLanguages),
+    [rows, query, fieldsByLang, aiLanguages],
+  );
 
   // When this page belongs to a property family, offer sideways links to the
   // family's manual, its facts sheet, and each sibling property's editor.
@@ -322,9 +321,12 @@ export default function SitePageEditor() {
             <AiJsonAssistant
               page={page}
               pageLabel={meta?.label ?? page}
-              documents={aiDocuments}
-              defaultLanguage={otherLang}
-              onApply={handleAiApply}
+              languages={aiLanguages}
+              fieldsByLang={fieldsByLang ?? {}}
+              rows={rows}
+              requestRows={filteredRows}
+              searchQuery={query.trim() || undefined}
+              onApplyCell={handleCellChange}
             />
             <Button size="sm" onClick={handleSave} disabled={!fieldsByLang || !anyDirty || saving}>
               {saving ? "Saving…" : "Save changes"}
@@ -384,6 +386,10 @@ export default function SitePageEditor() {
               machineTranslatedByLang={machineTranslatedByLang}
               onCellChange={handleCellChange}
               readonly={!canWrite}
+              query={query}
+              onQueryChange={setQuery}
+              rows={rows}
+              filteredRows={filteredRows}
             />
           ) : otherFields && Object.keys(otherFields).length > 0 ? (
             <div className="space-y-3">

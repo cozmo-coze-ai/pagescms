@@ -10,7 +10,7 @@
  * The separate media/list view keeps image uploads and add/remove controls.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Search, X } from "lucide-react";
 import {
   humanize,
@@ -29,7 +29,7 @@ import { getAtPath, type JsonPath } from "@/lib/json-path";
 
 export type Language = { code: string; label: string };
 
-type TextRow = {
+export type TextRow = {
   id: string;
   sectionKey: string;
   sectionLabel: string;
@@ -153,47 +153,58 @@ export function mergeOtherContent(key: string, original: Json | undefined, next:
   return next;
 }
 
+// Which rows match the search box, across every language's text plus the row
+// id and labels. Lives here (not in the component) so the page editor can use
+// the exact same subset for the "Fix with AI" request.
+export function filterTextRows(
+  rows: TextRow[],
+  query: string,
+  fieldsByLang: Record<string, Record<string, Json> | undefined>,
+  languages: Language[],
+): TextRow[] {
+  const needle = query.trim().toLocaleLowerCase();
+  if (!needle) return rows;
+
+  return rows.filter((row) => {
+    const values = languages.map((language) => {
+      const fields = fieldsByLang[language.code];
+      return fields ? getAtPath(fields, row.path) : "";
+    });
+    return [row.id, row.sectionLabel, row.label, ...values]
+      .filter((value): value is string => typeof value === "string")
+      .join("\n")
+      .toLocaleLowerCase()
+      .includes(needle);
+  });
+}
+
 export function SitePageSheet({
   languages,
   fieldsByLang,
   machineTranslatedByLang,
   onCellChange,
   readonly = false,
+  query,
+  onQueryChange,
+  rows,
+  filteredRows,
 }: {
   languages: Language[];
   fieldsByLang: Record<string, Record<string, Json>>;
   machineTranslatedByLang: Record<string, boolean>;
   onCellChange: (lang: string, path: JsonPath, value: string) => void;
   readonly?: boolean;
+  // Search lives in the page editor so the AI assistant can share its scope.
+  query: string;
+  onQueryChange: (query: string) => void;
+  rows: TextRow[];
+  filteredRows: TextRow[];
 }) {
-  const [query, setQuery] = useState("");
   const orderedLanguages = useMemo(() => {
     const en = languages.find((language) => language.code === "en");
     const others = languages.filter((language) => language.code !== "en");
     return en ? [en, ...others] : languages;
   }, [languages]);
-
-  const rows = useMemo(
-    () => (fieldsByLang.en ? collectTextRows(fieldsByLang.en, { includeArrays: true }) : []),
-    [fieldsByLang.en],
-  );
-
-  const filteredRows = useMemo(() => {
-    const needle = query.trim().toLocaleLowerCase();
-    if (!needle) return rows;
-
-    return rows.filter((row) => {
-      const values = orderedLanguages.map((language) => {
-        const fields = fieldsByLang[language.code];
-        return fields ? getAtPath(fields, row.path) : "";
-      });
-      return [row.id, row.sectionLabel, row.label, ...values]
-        .filter((value): value is string => typeof value === "string")
-        .join("\n")
-        .toLocaleLowerCase()
-        .includes(needle);
-    });
-  }, [fieldsByLang, orderedLanguages, query, rows]);
 
   const rowsById = useMemo(() => {
     const map = new Map<string, TextRow>();
@@ -229,7 +240,7 @@ export function SitePageSheet({
           <Input
             type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => onQueryChange(event.target.value)}
             placeholder="Search fields or text"
             aria-label="Search fields or text"
             className="h-8 pl-8 pr-8 text-sm"
@@ -239,7 +250,7 @@ export function SitePageSheet({
               type="button"
               variant="ghost"
               size="icon-xs"
-              onClick={() => setQuery("")}
+              onClick={() => onQueryChange("")}
               aria-label="Clear search"
               title="Clear search"
               className="absolute right-1 top-1/2 -translate-y-1/2"
@@ -258,6 +269,7 @@ export function SitePageSheet({
           columns={columns}
           sections={sections}
           readonly={readonly}
+          hideSearch
           getValue={(columnId, rowId) => {
             const row = rowsById.get(rowId);
             if (!row) return undefined;

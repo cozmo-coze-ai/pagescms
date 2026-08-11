@@ -16,6 +16,7 @@ import { DocumentTitle } from "@/components/document-title";
 import { DEPLOY_STATUS_REFRESH_EVENT } from "@/components/cms/deploy-status";
 import { AiJsonAssistant } from "@/components/cms/ai-json-assistant";
 import { BuildingSheet } from "@/components/cms/building-sheet";
+import { collectTextRows } from "@/components/cms/site-page-sheet";
 import { type Json } from "@/components/cms/shape-form";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -198,17 +199,23 @@ export default function BuildingSheetPage() {
   }
   const ready = Boolean(sharedFields) && family.manualProperties.every((p) => overridesBySlug[p.slug]);
   const currentLanguage = languages.find((language) => language.code === lang);
-  const aiDocuments = sharedFields
-    ? [{
-        code: lang,
-        label: currentLanguage?.label ?? lang.toUpperCase(),
-        fields: sharedFields,
-        sourceFields: lang === "en" ? undefined : englishSource,
-      }]
-    : [];
 
-  const handleAiApply = (_language: string, next: Record<string, Json>) => {
-    setDoc(family.manualPage, () => next);
+  // AI request: the shared manual's text rows, with English as the factual
+  // reference column plus the open language tab. Replies apply per cell and
+  // may only change the open tab (en stays reference-only on other tabs).
+  const aiRows = sharedFields ? collectTextRows(sharedFields) : [];
+  const enLanguage = languages.find((language) => language.code === "en");
+  const aiLanguages = [
+    ...(enLanguage ? [enLanguage] : []),
+    ...(lang !== "en" && currentLanguage ? [currentLanguage] : []),
+  ];
+  const aiFieldsByLang: Record<string, Record<string, Json> | undefined> = {
+    en: englishSource,
+    [lang]: sharedFields,
+  };
+
+  const handleAiApplyCell = (language: string, path: JsonPath, value: string) => {
+    if (language === lang) handleSharedChange(path, value);
   };
 
   return (
@@ -233,9 +240,11 @@ export default function BuildingSheetPage() {
             <AiJsonAssistant
               page={family.manualPage}
               pageLabel={`${family.shortLabel} shared manual`}
-              documents={aiDocuments}
-              defaultLanguage={lang}
-              onApply={handleAiApply}
+              languages={aiLanguages}
+              editableLanguages={[lang]}
+              fieldsByLang={aiFieldsByLang}
+              rows={aiRows}
+              onApplyCell={handleAiApplyCell}
             />
             <Button size="sm" onClick={handleSave} disabled={dirtyKeys.length === 0 || saving}>
               {saving
