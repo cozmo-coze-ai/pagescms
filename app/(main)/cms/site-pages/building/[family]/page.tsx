@@ -216,10 +216,6 @@ export default function BuildingSheetPage() {
           <h1 className="font-serif text-xl tracking-tight">
             {family.shortLabel} — manual &amp; translations
           </h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Choose one language. Edit <b>All units</b> for the whole building, or edit a unit for
-            an exception.
-          </p>
         </div>
         {canWrite && (
           <div className="flex items-center gap-2">

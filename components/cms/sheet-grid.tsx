@@ -13,7 +13,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Code2 } from "lucide-react";
+import { Code2, Search, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -162,10 +163,36 @@ export function SheetGrid({
   readonly?: boolean;
   maxHeightClass?: string;
 }) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+
+  // Search filters rows by field label, section label, or any column's text —
+  // so pasting a string seen on the live site lands on the field that owns it.
+  // A section-label match keeps the whole section visible. Array footers are
+  // hidden while searching (add/remove needs the full list in view).
+  const visibleSections = useMemo(() => {
+    if (!q) return sections;
+    const out: SheetSection[] = [];
+    for (const section of sections) {
+      const sectionHit = section.label.toLowerCase().includes(q);
+      const rows = sectionHit
+        ? section.rows
+        : section.rows.filter(
+            (row) =>
+              row.label.toLowerCase().includes(q) ||
+              columns.some((column) =>
+                (getValue(column.id, row.id) ?? "").toLowerCase().includes(q),
+              ),
+          );
+      if (rows.length > 0) out.push({ ...section, rows, footer: undefined });
+    }
+    return out;
+  }, [q, sections, columns, getValue]);
+
   // Flatten rows across sections for cell addressing / keyboard navigation.
   const flatRows = useMemo(
-    () => sections.flatMap((section) => section.rows),
-    [sections],
+    () => visibleSections.flatMap((section) => section.rows),
+    [visibleSections],
   );
   const rowIndexById = useMemo(() => {
     const map = new Map<string, number>();
@@ -174,6 +201,13 @@ export function SheetGrid({
   }, [flatRows]);
 
   const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null);
+
+  // Row indices shift when the filter changes — drop the active cell so typing
+  // can't land in the wrong field.
+  useEffect(() => {
+    setActiveCell(null);
+  }, [q]);
+
   const cellRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -221,7 +255,7 @@ export function SheetGrid({
     });
   };
 
-  if (flatRows.length === 0 && !sections.some((s) => s.footer)) return null;
+  if (sections.every((s) => s.rows.length === 0 && !s.footer)) return null;
 
   const gridTemplateColumns = `${LABEL_COL_WIDTH}px ${columns
     .map((column) => (column.pinned ? "220px" : "minmax(200px, 1fr)"))
@@ -229,9 +263,34 @@ export function SheetGrid({
 
   return (
     <div className="space-y-2">
-      {sections.length > 1 && (
-        <div className="flex flex-wrap gap-1.5">
-          {sections.map((section) => (
+      <div className="flex flex-wrap items-center gap-1.5">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search fields & text…"
+            aria-label="Search fields and text"
+            className="h-7 w-60 rounded-full pl-8 pr-7 text-[12px]"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+        {q && (
+          <span className="text-[11px] text-muted-foreground">
+            {flatRows.length} field{flatRows.length === 1 ? "" : "s"}
+          </span>
+        )}
+        {visibleSections.length > 1 &&
+          visibleSections.map((section) => (
             <button
               key={section.key}
               type="button"
@@ -241,8 +300,12 @@ export function SheetGrid({
               {section.label}
             </button>
           ))}
+      </div>
+      {q && flatRows.length === 0 ? (
+        <div className="rounded-lg border border-border bg-card px-3 py-8 text-center text-[12px] text-muted-foreground">
+          No fields match &ldquo;{query.trim()}&rdquo;.
         </div>
-      )}
+      ) : (
       <div
         ref={scrollRef}
         className={cn("relative overflow-auto rounded-lg border border-border", maxHeightClass)}
@@ -274,7 +337,7 @@ export function SheetGrid({
             </div>
           ))}
 
-          {sections.map((section) => (
+          {visibleSections.map((section) => (
             <div key={section.key} className="contents">
               <div
                 ref={(el) => {
@@ -365,6 +428,7 @@ export function SheetGrid({
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 }
