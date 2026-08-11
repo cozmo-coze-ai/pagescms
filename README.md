@@ -20,3 +20,14 @@ email + password, and the editing UI is the custom "studio" under `/cms`.
 - **Auth**: better-auth, email + password, invite-only sign-up. Roles
   (`admin` | `editor`) live on the user row; `ADMIN_EMAILS` is the
   bootstrap-owner escape hatch. Managed from `/cms/settings`.
+
+## Database connections
+
+`SG_POSTGRES_URL` is the application runtime connection. On Vercel it must use
+Supabase transaction pooler mode (port `6543`); the database client also
+normalizes an accidental Supabase session-pooler URL from `5432` to `6543`.
+Prepared statements are disabled for transaction mode, and each function
+instance keeps at most one short-lived connection.
+
+`SG_DATABASE_URL_UNPOOLED` is used only by Drizzle migrations. Keep it on a
+direct or session-mode connection because migrations require session semantics.
