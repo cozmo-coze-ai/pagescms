@@ -155,6 +155,9 @@ export function SheetGrid({
   getSearchText,
   readonly = false,
   hideSearch = false,
+  query: controlledQuery,
+  onQueryChange,
+  onVisibleRowsChange,
   maxHeightClass = "max-h-[65vh]",
 }: {
   columns: SheetColumn[];
@@ -170,9 +173,16 @@ export function SheetGrid({
   // The site-page sheet brings its own search box (shared with the AI
   // assistant's scope), so the grid's built-in one would be a confusing twin.
   hideSearch?: boolean;
+  // Controlled search — the building page lifts the query and listens for the
+  // visible row ids so its "Fix with AI" request covers exactly what's shown.
+  query?: string;
+  onQueryChange?: (query: string) => void;
+  onVisibleRowsChange?: (rowIds: string[]) => void;
   maxHeightClass?: string;
 }) {
-  const [query, setQuery] = useState("");
+  const [internalQuery, setInternalQuery] = useState("");
+  const query = controlledQuery ?? internalQuery;
+  const setQuery = onQueryChange ?? setInternalQuery;
   const q = query.trim().toLowerCase();
 
   // Search filters rows by field label, section label, or any column's text —
@@ -209,6 +219,10 @@ export function SheetGrid({
     flatRows.forEach((row, index) => map.set(row.id, index));
     return map;
   }, [flatRows]);
+
+  useEffect(() => {
+    onVisibleRowsChange?.(flatRows.map((row) => row.id));
+  }, [flatRows, onVisibleRowsChange]);
 
   const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null);
 

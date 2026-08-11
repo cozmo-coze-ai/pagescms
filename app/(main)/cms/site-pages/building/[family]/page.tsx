@@ -42,6 +42,8 @@ export default function BuildingSheetPage() {
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [query, setQuery] = useState("");
+  const [visibleRowIds, setVisibleRowIds] = useState<string[] | null>(null);
 
   useEffect(() => {
     if (!family) router.replace("/cms/site-pages");
@@ -203,7 +205,10 @@ export default function BuildingSheetPage() {
   // AI request: the shared manual's text rows, with English as the factual
   // reference column plus the open language tab. Replies apply per cell and
   // may only change the open tab (en stays reference-only on other tabs).
+  // An active sheet search narrows the request to the rows on screen.
   const aiRows = sharedFields ? collectTextRows(sharedFields) : [];
+  const visibleSet = visibleRowIds ? new Set(visibleRowIds) : null;
+  const aiRequestRows = visibleSet ? aiRows.filter((row) => visibleSet.has(row.id)) : aiRows;
   const enLanguage = languages.find((language) => language.code === "en");
   const aiLanguages = [
     ...(enLanguage ? [enLanguage] : []),
@@ -244,6 +249,8 @@ export default function BuildingSheetPage() {
               editableLanguages={[lang]}
               fieldsByLang={aiFieldsByLang}
               rows={aiRows}
+              requestRows={aiRequestRows}
+              searchQuery={query.trim() || undefined}
               onApplyCell={handleAiApplyCell}
             />
             <Button size="sm" onClick={handleSave} disabled={dirtyKeys.length === 0 || saving}>
@@ -305,6 +312,9 @@ export default function BuildingSheetPage() {
             onOverrideSet={handleOverrideSet}
             onOverrideRevert={handleOverrideRevert}
             readonly={!canWrite}
+            query={query}
+            onQueryChange={setQuery}
+            onVisibleRowsChange={setVisibleRowIds}
           />
           <p className="text-[11px] text-muted-foreground">
             WiFi, door codes, parking and photos are on the{" "}

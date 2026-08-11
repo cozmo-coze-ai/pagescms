@@ -35,6 +35,9 @@ export function BuildingSheet({
   onOverrideSet,
   onOverrideRevert,
   readonly = false,
+  query,
+  onQueryChange,
+  onVisibleRowsChange,
 }: {
   family: PageFamily;
   sharedFields: Record<string, Json>;
@@ -46,6 +49,10 @@ export function BuildingSheet({
   onOverrideSet: (slug: string, path: JsonPath, value: string) => void;
   onOverrideRevert: (slug: string, path: JsonPath) => void;
   readonly?: boolean;
+  // Lifted search (see SheetGrid) so "Fix with AI" shares the visible scope.
+  query?: string;
+  onQueryChange?: (query: string) => void;
+  onVisibleRowsChange?: (rowIds: string[]) => void;
 }) {
   const rows = useMemo(() => collectTextRows(sharedFields), [sharedFields]);
   const rowsById = useMemo(() => {
@@ -78,6 +85,9 @@ export function BuildingSheet({
       columns={columns}
       sections={sections}
       readonly={readonly}
+      query={query}
+      onQueryChange={onQueryChange}
+      onVisibleRowsChange={onVisibleRowsChange}
       getValue={(columnId, rowId) => {
         const row = rowsById.get(rowId);
         if (!row) return undefined;
