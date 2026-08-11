@@ -64,34 +64,41 @@ export default function BuildingSheetPage() {
     [family],
   );
 
+  // Load every language's documents up front (not just the open tab): the
+  // search box matches across all languages, and tab switches become instant.
+  // The skeleton only gates on the currently viewed language.
   useEffect(() => {
     if (!family || languages.length === 0) return;
-    const missing = neededPages.filter((page) => !(docKey(page, lang) in docs));
+    const missing = languages.flatMap((l) =>
+      neededPages
+        .filter((page) => !(docKey(page, l.code) in docs))
+        .map((page) => ({ page, code: l.code })),
+    );
     if (missing.length === 0) {
       setLoading(false);
       return;
     }
     let cancelled = false;
-    setLoading(true);
+    if (neededPages.some((page) => !(docKey(page, lang) in docs))) setLoading(true);
     (async () => {
       const results = await Promise.all(
-        missing.map(async (page) => {
-          const response = await fetch(`/api/cms/guest-pages/${page}/${lang}`);
+        missing.map(async ({ page, code }) => {
+          const response = await fetch(`/api/cms/guest-pages/${page}/${code}`);
           const json = await response.json();
-          return { page, json };
+          return { page, code, json };
         }),
       );
       if (cancelled) return;
       setDocs((prev) => {
         const next = { ...prev };
-        for (const { page, json } of results) {
+        for (const { page, code, json } of results) {
           if (json.status === "success") {
-            next[docKey(page, lang)] = {
+            next[docKey(page, code)] = {
               fields: json.data.fields,
               machineTranslated: json.data.machineTranslated,
             };
           } else {
-            toast.error(json.message || `Could not load ${page} (${lang}).`);
+            toast.error(json.message || `Could not load ${page} (${code}).`);
           }
         }
         return next;
@@ -128,6 +135,10 @@ export default function BuildingSheetPage() {
   }, [setDoc]);
 
   const dirtyKeys = useMemo(() => Object.keys(dirty).filter((k) => dirty[k]), [dirty]);
+
+  // Every loaded document (all languages, shared + overrides) — the search
+  // haystack, so a string pasted from any language's live page is findable.
+  const searchDocs = useMemo(() => Object.values(docs).map((doc) => doc.fields), [docs]);
 
   const handleSave = async () => {
     if (dirtyKeys.length === 0) return;
@@ -280,6 +291,7 @@ export default function BuildingSheetPage() {
             family={family}
             sharedFields={sharedFields!}
             overridesBySlug={overridesBySlug}
+            searchDocs={searchDocs}
             onSharedChange={handleSharedChange}
             onOverrideSet={handleOverrideSet}
             onOverrideRevert={handleOverrideRevert}

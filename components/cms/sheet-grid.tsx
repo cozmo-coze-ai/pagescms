@@ -152,6 +152,7 @@ export function SheetGrid({
   getValue,
   onChange,
   getCellVariant,
+  getSearchText,
   readonly = false,
   maxHeightClass = "max-h-[65vh]",
 }: {
@@ -160,6 +161,10 @@ export function SheetGrid({
   getValue: (columnId: string, rowId: string) => string | undefined;
   onChange: (columnId: string, rowId: string, value: string) => void;
   getCellVariant?: (columnId: string, rowId: string) => CellVariant | undefined;
+  // Extra per-row haystack for the search box, beyond the visible columns —
+  // the building sheet passes every language's text here so one search finds
+  // a string no matter which language tab is open.
+  getSearchText?: (rowId: string) => string | undefined;
   readonly?: boolean;
   maxHeightClass?: string;
 }) {
@@ -180,6 +185,7 @@ export function SheetGrid({
         : section.rows.filter(
             (row) =>
               row.label.toLowerCase().includes(q) ||
+              (getSearchText?.(row.id) ?? "").toLowerCase().includes(q) ||
               columns.some((column) =>
                 (getValue(column.id, row.id) ?? "").toLowerCase().includes(q),
               ),
@@ -187,7 +193,7 @@ export function SheetGrid({
       if (rows.length > 0) out.push({ ...section, rows, footer: undefined });
     }
     return out;
-  }, [q, sections, columns, getValue]);
+  }, [q, sections, columns, getValue, getSearchText]);
 
   // Flatten rows across sections for cell addressing / keyboard navigation.
   const flatRows = useMemo(

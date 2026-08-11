@@ -30,6 +30,7 @@ export function BuildingSheet({
   family,
   sharedFields,
   overridesBySlug,
+  searchDocs,
   onSharedChange,
   onOverrideSet,
   onOverrideRevert,
@@ -38,6 +39,9 @@ export function BuildingSheet({
   family: PageFamily;
   sharedFields: Record<string, Json>;
   overridesBySlug: Record<string, Record<string, Json> | undefined>;
+  // Field documents in every language (shared + overrides) — search haystack
+  // only; the visible cells still come from sharedFields/overridesBySlug.
+  searchDocs?: Record<string, Json>[];
   onSharedChange: (path: JsonPath, value: string) => void;
   onOverrideSet: (slug: string, path: JsonPath, value: string) => void;
   onOverrideRevert: (slug: string, path: JsonPath) => void;
@@ -81,6 +85,16 @@ export function BuildingSheet({
         if (columnId === SHARED_COL) return sharedVal;
         const ov = overrideAt(columnId, row.path);
         return typeof ov === "string" ? ov : sharedVal; // inherited → shared value
+      }}
+      getSearchText={(rowId) => {
+        const row = rowsById.get(rowId);
+        if (!row || !searchDocs) return undefined;
+        const parts: string[] = [];
+        for (const doc of searchDocs) {
+          const value = getAtPath(doc, row.path);
+          if (typeof value === "string" && value) parts.push(value);
+        }
+        return parts.join("\n");
       }}
       getCellVariant={(columnId, rowId): CellVariant | undefined => {
         if (columnId === SHARED_COL) return undefined;
