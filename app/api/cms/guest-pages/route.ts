@@ -13,7 +13,11 @@ export async function GET() {
     const sessionResult = await requireApiUserSession();
     if ("response" in sessionResult) return sessionResult.response;
 
-    const [pages, languages] = await Promise.all([listGuestPages(), listLanguages()]);
+    // The runtime client intentionally has one connection per serverless
+    // instance. Keep these small reads sequential so neither waits behind a
+    // concurrent query while Supavisor is recovering from capacity pressure.
+    const pages = await listGuestPages();
+    const languages = await listLanguages();
     return Response.json({ status: "success", data: { pages, languages } });
   } catch (error) {
     console.error(error);
