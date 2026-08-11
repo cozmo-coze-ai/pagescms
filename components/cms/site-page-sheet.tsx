@@ -10,7 +10,8 @@
  * The separate media/list view keeps image uploads and add/remove controls.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Search, X } from "lucide-react";
 import {
   humanize,
   isImageObject,
@@ -22,6 +23,8 @@ import {
   type SheetColumn,
   type SheetSection,
 } from "@/components/cms/sheet-grid";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { getAtPath, type JsonPath } from "@/lib/json-path";
 
 export type Language = { code: string; label: string };
@@ -163,14 +166,34 @@ export function SitePageSheet({
   onCellChange: (lang: string, path: JsonPath, value: string) => void;
   readonly?: boolean;
 }) {
-  const en = languages.find((l) => l.code === "en");
-  const otherLanguages = languages.filter((l) => l.code !== "en");
-  const orderedLanguages = en ? [en, ...otherLanguages] : languages;
+  const [query, setQuery] = useState("");
+  const orderedLanguages = useMemo(() => {
+    const en = languages.find((language) => language.code === "en");
+    const others = languages.filter((language) => language.code !== "en");
+    return en ? [en, ...others] : languages;
+  }, [languages]);
 
   const rows = useMemo(
     () => (fieldsByLang.en ? collectTextRows(fieldsByLang.en, { includeArrays: true }) : []),
     [fieldsByLang.en],
   );
+
+  const filteredRows = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase();
+    if (!needle) return rows;
+
+    return rows.filter((row) => {
+      const values = orderedLanguages.map((language) => {
+        const fields = fieldsByLang[language.code];
+        return fields ? getAtPath(fields, row.path) : "";
+      });
+      return [row.id, row.sectionLabel, row.label, ...values]
+        .filter((value): value is string => typeof value === "string")
+        .join("\n")
+        .toLocaleLowerCase()
+        .includes(needle);
+    });
+  }, [fieldsByLang, orderedLanguages, query, rows]);
 
   const rowsById = useMemo(() => {
     const map = new Map<string, TextRow>();
@@ -187,31 +210,69 @@ export function SitePageSheet({
 
   const sections = useMemo(() => {
     const out: SheetSection[] = [];
-    for (const row of rows) {
+    for (const row of filteredRows) {
       const last = out[out.length - 1];
       const entry = { id: row.id, label: row.label, isHtml: row.isHtml };
       if (last && last.key === row.sectionKey) last.rows.push(entry);
       else out.push({ key: row.sectionKey, label: row.sectionLabel, rows: [entry] });
     }
     return out;
-  }, [rows]);
+  }, [filteredRows]);
 
   if (rows.length === 0) return null;
 
   return (
-    <SheetGrid
-      columns={columns}
-      sections={sections}
-      readonly={readonly}
-      getValue={(columnId, rowId) => {
-        const row = rowsById.get(rowId);
-        if (!row) return undefined;
-        return (getAtPath(fieldsByLang[columnId], row.path) as string) ?? "";
-      }}
-      onChange={(columnId, rowId, value) => {
-        const row = rowsById.get(rowId);
-        if (row) onCellChange(columnId, row.path, value);
-      }}
-    />
+    <div className="space-y-2">
+      <div className="flex items-center gap-3">
+        <div className="relative min-w-0 max-w-md flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search fields or text"
+            aria-label="Search fields or text"
+            className="h-8 pl-8 pr-8 text-sm"
+          />
+          {query && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              title="Clear search"
+              className="absolute right-1 top-1/2 -translate-y-1/2"
+            >
+              <X />
+            </Button>
+          )}
+        </div>
+        <span className="shrink-0 text-xs tabular-nums text-muted-foreground" aria-live="polite">
+          {query.trim() ? `${filteredRows.length} of ${rows.length}` : `${rows.length} fields`}
+        </span>
+      </div>
+
+      {filteredRows.length > 0 ? (
+        <SheetGrid
+          columns={columns}
+          sections={sections}
+          readonly={readonly}
+          getValue={(columnId, rowId) => {
+            const row = rowsById.get(rowId);
+            if (!row) return undefined;
+            return (getAtPath(fieldsByLang[columnId], row.path) as string) ?? "";
+          }}
+          onChange={(columnId, rowId, value) => {
+            const row = rowsById.get(rowId);
+            if (row) onCellChange(columnId, row.path, value);
+          }}
+        />
+      ) : (
+        <div className="rounded-md border border-border px-3 py-8 text-center text-sm text-muted-foreground">
+          No matching fields
+        </div>
+      )}
+    </div>
   );
 }
