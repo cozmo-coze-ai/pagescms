@@ -44,6 +44,17 @@ export default function BuildingSheetPage() {
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState("");
   const [visibleRowIds, setVisibleRowIds] = useState<string[] | null>(null);
+  // Keep the same state reference when the visible set is unchanged so this
+  // update can never ping-pong with the sheet's report effect.
+  const handleVisibleRowsChange = useCallback((rowIds: string[]) => {
+    setVisibleRowIds((prev) =>
+      prev &&
+      prev.length === rowIds.length &&
+      prev.every((id, index) => id === rowIds[index])
+        ? prev
+        : rowIds,
+    );
+  }, []);
 
   useEffect(() => {
     if (!family) router.replace("/cms/site-pages");
@@ -314,7 +325,7 @@ export default function BuildingSheetPage() {
             readonly={!canWrite}
             query={query}
             onQueryChange={setQuery}
-            onVisibleRowsChange={setVisibleRowIds}
+            onVisibleRowsChange={handleVisibleRowsChange}
           />
           <p className="text-[11px] text-muted-foreground">
             WiFi, door codes, parking and photos are on the{" "}

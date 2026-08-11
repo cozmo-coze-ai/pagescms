@@ -220,8 +220,17 @@ export function SheetGrid({
     return map;
   }, [flatRows]);
 
+  // flatRows gets a fresh identity on unrelated parent re-renders (inline
+  // getValue closures), so emit only when the ids actually change — emitting
+  // a new array every effect run re-renders the parent in an endless loop.
+  const lastVisibleIdsRef = useRef("");
   useEffect(() => {
-    onVisibleRowsChange?.(flatRows.map((row) => row.id));
+    if (!onVisibleRowsChange) return;
+    const ids = flatRows.map((row) => row.id);
+    const key = ids.join("\n");
+    if (key === lastVisibleIdsRef.current) return;
+    lastVisibleIdsRef.current = key;
+    onVisibleRowsChange(ids);
   }, [flatRows, onVisibleRowsChange]);
 
   const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null);
