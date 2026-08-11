@@ -129,7 +129,9 @@ export function AiJsonAssistant({
         ...(searchQuery
           ? { note: `Only the fields matching the editor search "${searchQuery}" are included.` }
           : {}),
-        languages,
+        // The language objects from the API carry extra internal keys — send
+        // the AI only what it needs.
+        languages: languages.map(({ code, label }) => ({ code, label })),
         editableLanguages: editable,
         prompt: [
           "fields maps each field id to that field's current text in every language listed in languages.",
