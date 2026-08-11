@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { DocumentTitle } from "@/components/document-title";
 import { DEPLOY_STATUS_REFRESH_EVENT } from "@/components/cms/deploy-status";
+import { AiJsonAssistant } from "@/components/cms/ai-json-assistant";
 import { BuildingSheet } from "@/components/cms/building-sheet";
 import { type Json } from "@/components/cms/shape-form";
 import { Button } from "@/components/ui/button";
@@ -179,11 +180,25 @@ export default function BuildingSheetPage() {
   if (!family) return null;
 
   const sharedFields = docs[docKey(family.manualPage, lang)]?.fields;
+  const englishSource = docs[docKey(family.manualPage, "en")]?.fields;
   const overridesBySlug: Record<string, Record<string, Json> | undefined> = {};
   for (const p of family.manualProperties) {
     overridesBySlug[p.slug] = docs[docKey(overridePageFor(p.slug), lang)]?.fields;
   }
   const ready = Boolean(sharedFields) && family.manualProperties.every((p) => overridesBySlug[p.slug]);
+  const currentLanguage = languages.find((language) => language.code === lang);
+  const aiDocuments = sharedFields
+    ? [{
+        code: lang,
+        label: currentLanguage?.label ?? lang.toUpperCase(),
+        fields: sharedFields,
+        sourceFields: lang === "en" ? undefined : englishSource,
+      }]
+    : [];
+
+  const handleAiApply = (_language: string, next: Record<string, Json>) => {
+    setDoc(family.manualPage, () => next);
+  };
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-4">
@@ -198,21 +213,31 @@ export default function BuildingSheetPage() {
             <ArrowLeft className="h-3 w-3" />
             Site pages
           </Link>
-          <h1 className="font-serif text-xl tracking-tight">{family.shortLabel} — check-in guide</h1>
+          <h1 className="font-serif text-xl tracking-tight">
+            {family.shortLabel} — manual &amp; translations
+          </h1>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            The <b>All units</b> column is what every unit shows. Want one unit to say something
-            different? Type in that unit&apos;s column. Grey text means &ldquo;same as all units.&rdquo;
-            Pick a language with the buttons below.
+            Choose one language. Edit <b>All units</b> for the whole building, or edit a unit for
+            an exception.
           </p>
         </div>
         {canWrite && (
-          <Button size="sm" onClick={handleSave} disabled={dirtyKeys.length === 0 || saving}>
-            {saving
-              ? "Saving…"
-              : dirtyKeys.length > 0
-                ? `Save ${dirtyKeys.length} change${dirtyKeys.length > 1 ? "s" : ""}`
-                : "Save changes"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <AiJsonAssistant
+              page={family.manualPage}
+              pageLabel={`${family.shortLabel} shared manual`}
+              documents={aiDocuments}
+              defaultLanguage={lang}
+              onApply={handleAiApply}
+            />
+            <Button size="sm" onClick={handleSave} disabled={dirtyKeys.length === 0 || saving}>
+              {saving
+                ? "Saving…"
+                : dirtyKeys.length > 0
+                  ? `Save ${dirtyKeys.length} change${dirtyKeys.length > 1 ? "s" : ""}`
+                  : "Save changes"}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -265,11 +290,11 @@ export default function BuildingSheetPage() {
             readonly={!canWrite}
           />
           <p className="text-[11px] text-muted-foreground">
-            WiFi, door codes and unit numbers are on the{" "}
+            WiFi, door codes, parking and photos are on the{" "}
             <Link href={`/cms/site-pages/facts/${family.id}`} className="text-primary hover:underline">
-              WiFi &amp; door codes
+              Property details
             </Link>{" "}
-            page. Step-by-step photo lists stay the same for the whole building.
+            page.
           </p>
         </>
       )}

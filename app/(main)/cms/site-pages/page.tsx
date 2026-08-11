@@ -9,8 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PAGE_FAMILIES } from "@/lib/page-families";
 
 /**
- * "Website pages" index — deliberately plain: two cards per building (the
- * guest manual, and WiFi/door codes) plus the standalone experience pages.
+ * "Website pages" index — deliberately plain: two choices per building (the
+ * guest manual, and property details) plus the standalone experience pages.
  * No insider language, no overlapping entry points.
  */
 
@@ -63,11 +63,11 @@ export default function SitePagesPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <DocumentTitle title="Website pages" />
+      <DocumentTitle title="Choose what to change" />
       <div>
-        <h1 className="font-serif text-xl tracking-tight">Website pages</h1>
+        <h1 className="font-serif text-xl tracking-tight">Choose what to change</h1>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Edit what guests see on coze.care. Pick a building to change its check-in guide.
+          Choose a building, then choose manual text or property details.
         </p>
       </div>
 
@@ -80,13 +80,13 @@ export default function SitePagesPage() {
               </h2>
               <BigCard
                 href={`/cms/site-pages/building/${family.id}`}
-                title="Guest check-in guide"
-                subtitle="Directions, check-in times, house rules, concierge — in every language."
+                title="Manual & translations"
+                subtitle="Directions, check-in, house rules and concierge in every language."
               />
               <BigCard
                 href={`/cms/site-pages/facts/${family.id}`}
-                title="WiFi & door codes"
-                subtitle="WiFi names, passwords, door codes and unit numbers."
+                title="Property details"
+                subtitle="WiFi, door codes, parking and photos for each unit."
               />
             </div>
           ))}

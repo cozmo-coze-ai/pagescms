@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { DocumentTitle } from "@/components/document-title";
 import { DEPLOY_STATUS_REFRESH_EVENT } from "@/components/cms/deploy-status";
+import { AiJsonAssistant } from "@/components/cms/ai-json-assistant";
 import { ShapeForm, isImageObject, type Json } from "@/components/cms/shape-form";
 import {
   SitePageSheet,
@@ -235,6 +236,26 @@ export default function SitePageEditor() {
     router.replace(`/cms/site-pages/${page}?lang=${lang}`, { scroll: false });
   };
 
+  const aiDocuments = useMemo(
+    () =>
+      languages.flatMap((language) => {
+        const fields = fieldsByLang?.[language.code];
+        if (!fields) return [];
+        return [{
+          code: language.code,
+          label: language.label,
+          fields,
+          sourceFields: language.code === "en" ? undefined : fieldsByLang?.en,
+        }];
+      }),
+    [fieldsByLang, languages],
+  );
+
+  const handleAiApply = (lang: string, next: Record<string, Json>) => {
+    setFieldsByLang((prev) => (prev ? { ...prev, [lang]: next } : prev));
+    setDirtyLangs((prev) => ({ ...prev, [lang]: true }));
+  };
+
   // When this page belongs to a property family, offer sideways links to the
   // family's manual, its facts sheet, and each sibling property's editor.
   const family = getFamilyForPage(page);
@@ -262,13 +283,13 @@ export default function SitePageEditor() {
                 href={`/cms/site-pages/building/${family.id}`}
                 className="text-primary hover:underline"
               >
-                Check-in guide
+                Manual &amp; translations
               </Link>
               <Link
                 href={`/cms/site-pages/facts/${family.id}`}
                 className="hover:text-foreground hover:underline"
               >
-                WiFi &amp; door codes
+                Property details
               </Link>
               {family.properties
                 .filter((property) => property.page !== page)
@@ -285,9 +306,9 @@ export default function SitePageEditor() {
           )}
           {meta && isFactsPage && (
             <p className="mt-1.5 text-[11px] text-muted-foreground">
-              Tip: change WiFi &amp; door codes for every {family?.shortLabel} unit in one place on the{" "}
+              Change every {family?.shortLabel} unit in one place on the{" "}
               <Link href={`/cms/site-pages/facts/${family?.id}`} className="text-primary hover:underline">
-                WiFi &amp; door codes
+                Property details
               </Link>{" "}
               page.
             </p>
@@ -318,9 +339,18 @@ export default function SitePageEditor() {
           )}
         </div>
         {canWrite && (
-          <Button size="sm" onClick={handleSave} disabled={!fieldsByLang || !anyDirty || saving}>
-            {saving ? "Saving…" : "Save changes"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <AiJsonAssistant
+              page={page}
+              pageLabel={meta?.label ?? page}
+              documents={aiDocuments}
+              defaultLanguage={otherLang}
+              onApply={handleAiApply}
+            />
+            <Button size="sm" onClick={handleSave} disabled={!fieldsByLang || !anyDirty || saving}>
+              {saving ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -332,8 +362,7 @@ export default function SitePageEditor() {
       ) : meta?.multiLang ? (
         <>
           <p className="text-xs text-muted-foreground">
-            Click a cell to edit it. Tab/Shift+Tab moves between languages, Enter moves down a
-            row. English is pinned as the reference column.
+            Edit text in the table. English stays on the left for reference.
           </p>
           <SitePageSheet
             languages={languages}
