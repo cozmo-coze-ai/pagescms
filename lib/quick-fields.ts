@@ -96,6 +96,21 @@ const PROMO_ROWS: QuickRowDef[] = [
   { label: "Rate · 7-seater", path: ["concierge", "rateSeat7"] },
 ];
 
+// Rates-only subset of PROMO_ROWS for buildings whose manuals show the
+// airport-van rates table but hide the free-van promotion panel (BS and the
+// Daehak-ro JT family) — editing vanPromo* there would change nothing visible.
+const RATES_ROWS: QuickRowDef[] = [
+  { label: "Airport van title", path: ["concierge", "airportVanTitle"] },
+  { label: "Airport van intro", path: ["concierge", "airportVanLede"] },
+  { label: "Rates summary", path: ["concierge", "ratesSummary"] },
+  { label: "Rate · Gimpo", path: ["concierge", "rateGimpo"] },
+  { label: "Rate · Incheon", path: ["concierge", "rateIncheon"] },
+  { label: "Rate · Seoul + luggage", path: ["concierge", "rateSeoulLuggage"] },
+  { label: "Rate · flat note", path: ["concierge", "rateFlatHtml"], isHtml: true },
+  { label: "Rate · 4-seater", path: ["concierge", "rateSeat4"] },
+  { label: "Rate · 7-seater", path: ["concierge", "rateSeat7"] },
+];
+
 const CHECKIN_ROWS: QuickRowDef[] = [
   { label: "Check-in time", path: ["arrival", "checkInValue"] },
   { label: "Check-out time", path: ["arrival", "checkOutValue"] },
@@ -142,6 +157,27 @@ export const QUICK_TOPICS: QuickTopic[] = [
         ],
         arrays: [WIFI_ARRAY, DOOR_CODES_ARRAY],
       },
+      {
+        mode: "byProperty",
+        title: "Buam-dong (BS)",
+        family: "bs",
+        rows: [{ label: "Unit number", path: ["unitNumber"] }],
+        arrays: [WIFI_ARRAY],
+      },
+      {
+        mode: "byProperty",
+        title: "Daehak-ro (JT · JTS)",
+        family: "jt",
+        rows: [{ label: "Unit number", path: ["unitNumber"] }],
+        arrays: [WIFI_ARRAY],
+      },
+      {
+        mode: "byProperty",
+        title: "Seoul Station (SJ)",
+        family: "sj",
+        rows: [{ label: "Unit number", path: ["unitNumber"] }],
+        arrays: [WIFI_ARRAY],
+      },
     ],
   },
   {
@@ -157,6 +193,9 @@ export const QUICK_TOPICS: QuickTopic[] = [
         family: "ht",
         rows: [{ label: "Van promo note", path: ["concierge", "vanPromoNote"] }],
       },
+      { mode: "byLanguage", title: "COZE BS manual (van rates — no promo panel on /bs)", page: "manuals-bs", rows: RATES_ROWS },
+      { mode: "byLanguage", title: "Daehak-ro manuals (van rates — no promo panel on /jt, /jts)", page: "manuals-jt", rows: RATES_ROWS },
+      { mode: "byLanguage", title: "COZE SJ manual (van rates — no promo panel on /sj)", page: "manuals-sj", rows: RATES_ROWS },
     ],
   },
   {
@@ -191,6 +230,9 @@ export const QUICK_TOPICS: QuickTopic[] = [
     blocks: [
       { mode: "byLanguage", title: "Kelly manuals (GK · Ananda · Prana)", page: "manuals", rows: CHECKIN_ROWS },
       { mode: "byLanguage", title: "Haebangchon manuals (HT · HTA · HTB)", page: "manuals-ht", rows: CHECKIN_ROWS },
+      { mode: "byLanguage", title: "COZE BS manual", page: "manuals-bs", rows: CHECKIN_ROWS },
+      { mode: "byLanguage", title: "Daehak-ro manuals (JT · JTS)", page: "manuals-jt", rows: CHECKIN_ROWS },
+      { mode: "byLanguage", title: "COZE SJ manual", page: "manuals-sj", rows: CHECKIN_ROWS },
     ],
   },
   {
@@ -200,8 +242,14 @@ export const QUICK_TOPICS: QuickTopic[] = [
     blocks: [
       { mode: "byLanguage", title: "Kelly manuals (copy)", page: "manuals", rows: PARKING_COPY_ROWS },
       { mode: "byLanguage", title: "Haebangchon manuals (copy)", page: "manuals-ht", rows: PARKING_COPY_ROWS },
+      { mode: "byLanguage", title: "COZE BS manual (copy)", page: "manuals-bs", rows: PARKING_COPY_ROWS },
+      { mode: "byLanguage", title: "Daehak-ro manuals (copy)", page: "manuals-jt", rows: PARKING_COPY_ROWS },
       { mode: "byProperty", title: "Kelly property facts", family: "gk", subtrees: [{ path: ["arrival"] }] },
       { mode: "byProperty", title: "Haebangchon property facts", family: "ht", subtrees: [{ path: ["arrival"] }] },
+      { mode: "byProperty", title: "Buam-dong property facts", family: "bs", subtrees: [{ path: ["arrival"] }] },
+      { mode: "byProperty", title: "Daehak-ro property facts", family: "jt", subtrees: [{ path: ["arrival"] }] },
+      { mode: "byLanguage", title: "COZE SJ manual (copy)", page: "manuals-sj", rows: PARKING_COPY_ROWS },
+      { mode: "byProperty", title: "Seoul Station property facts", family: "sj", subtrees: [{ path: ["arrival"] }] },
     ],
   },
 ];

@@ -142,6 +142,75 @@ export const GUEST_PAGES: {
     role: "facts",
     previewPaths: [{ label: "", path: "/htb" }],
   },
+  {
+    page: "manuals-bs",
+    label: "Guest manual (COZE BS)",
+    description:
+      "All text on the /bs Buam-dong check-in manual — incl. the Horizon Spa & Urban Garden chapter.",
+    multiLang: true,
+    group: "bs",
+    role: "manual",
+    previewPaths: [{ label: "", path: "/bs" }],
+  },
+  {
+    page: "bs-config",
+    label: "COZE BS — property facts",
+    description: "Unit label, WiFi networks & passwords, door codes and photo paths for /bs. Same in every language.",
+    multiLang: false,
+    group: "bs",
+    role: "facts",
+    previewPaths: [{ label: "", path: "/bs" }],
+  },
+  {
+    page: "manuals-jt",
+    label: "Guest manuals (COZE JT & JTS)",
+    description:
+      "All text on the /jt and /jts Daehak-ro check-in manuals — shared copy (incl. the Garden & BBQ chapter) with the studio's own overrides on top.",
+    multiLang: true,
+    group: "jt",
+    role: "manual",
+    previewPaths: [
+      { label: "JT", path: "/jt" },
+      { label: "JTS", path: "/jts" },
+    ],
+  },
+  {
+    page: "jt-config",
+    label: "COZE JT — property facts",
+    description: "Gate code, WiFi network & password, mid-stay cleaning price and photo paths for /jt. Same in every language.",
+    multiLang: false,
+    group: "jt",
+    role: "facts",
+    previewPaths: [{ label: "", path: "/jt" }],
+  },
+  {
+    page: "manuals-sj",
+    label: "Guest manual (COZE SJ)",
+    description:
+      "All text on the /sj Seoul Station check-in manual — apartment house rules, parking flow and concierge services.",
+    multiLang: true,
+    group: "sj",
+    role: "manual",
+    previewPaths: [{ label: "", path: "/sj" }],
+  },
+  {
+    page: "sj-config",
+    label: "COZE SJ — property facts",
+    description: "Gate code, WiFi network & password, parking facts and photo paths for /sj. Same in every language.",
+    multiLang: false,
+    group: "sj",
+    role: "facts",
+    previewPaths: [{ label: "", path: "/sj" }],
+  },
+  {
+    page: "jts-config",
+    label: "COZE JTS — property facts",
+    description: "Key box PIN, WiFi network & password, mid-stay cleaning price and photo paths for /jts. Same in every language.",
+    multiLang: false,
+    group: "jt",
+    role: "facts",
+    previewPaths: [{ label: "", path: "/jts" }],
+  },
 ];
 
 const listLanguages = async () =>

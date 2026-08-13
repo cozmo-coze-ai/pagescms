@@ -13,7 +13,7 @@
  *   merged over the shared building manual at render. Drives the building sheet.
  */
 
-export type PageFamilyId = "gk" | "ht";
+export type PageFamilyId = "gk" | "ht" | "bs" | "jt" | "sj";
 
 export type PageFamily = {
   id: PageFamilyId;
@@ -56,6 +56,36 @@ export const PAGE_FAMILIES: PageFamily[] = [
       { slug: "hta", label: "HTA", path: "/hta" },
       { slug: "htb", label: "HTB", path: "/htb" },
     ],
+  },
+  {
+    id: "bs",
+    label: "Buam-dong — COZE BS (Breeze & Sunrise)",
+    shortLabel: "Buam-dong",
+    manualPage: "manuals-bs",
+    properties: [{ page: "bs-config", label: "COZE BS", path: "/bs" }],
+    manualProperties: [{ slug: "bs", label: "COZE BS", path: "/bs" }],
+  },
+  {
+    id: "jt",
+    label: "Daehak-ro — JT · JTS",
+    shortLabel: "Daehak-ro",
+    manualPage: "manuals-jt",
+    properties: [
+      { page: "jt-config", label: "COZE JT", path: "/jt" },
+      { page: "jts-config", label: "JTS", path: "/jts" },
+    ],
+    manualProperties: [
+      { slug: "jt", label: "COZE JT", path: "/jt" },
+      { slug: "jts", label: "JTS", path: "/jts" },
+    ],
+  },
+  {
+    id: "sj",
+    label: "Seoul Station — COZE SJ",
+    shortLabel: "Seoul Station",
+    manualPage: "manuals-sj",
+    properties: [{ page: "sj-config", label: "COZE SJ", path: "/sj" }],
+    manualProperties: [{ slug: "sj", label: "COZE SJ", path: "/sj" }],
   },
 ];
 
