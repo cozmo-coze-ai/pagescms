@@ -13,7 +13,7 @@ import {
   applyEdits, homepageErrors, HOME_IMAGE_DIR, HOME_TEXT_FILES, imageInfo, imageNameError, summarizeChange, type TextEdit,
 } from "@/lib/homepage-guard";
 import {
-  buildState, changedPaths, commitFiles, headCommit, listImages, readBytes, readTextFiles, requireGitDeploy, type FileWrite,
+  buildState, changedPaths, commitFiles, headCommit, listImages, readBytes, readTextFiles, requireGitDeploy, SITE_URL, type FileWrite,
 } from "@/lib/homepage-git";
 
 const MAX_CHANGES_PER_HOUR = 10;
@@ -79,18 +79,27 @@ export function checkImage(filename: string, bytes: Uint8Array) {
   return info;
 }
 
-async function record(input: { change: ChangeRecord; rationale: string; author: string; actorId: string }) {
+async function beginRecord(input: { change: ChangeRecord; rationale: string; author: string }) {
   const id = crypto.randomUUID();
   await db.transaction(async (tx) => {
     await tx.insert(cmsProposalTable).values({
-      id, kind: "homepage_design", target: "homepage", status: "published",
-      publishedAt: new Date(), publishedBy: input.actorId,
+      id, kind: "homepage_design", target: "homepage", status: "draft",
     });
     await tx.insert(cmsProposalVersionTable).values({
       proposalId: id, version: 1, content: input.change, rationale: input.rationale, author: input.author,
     });
   });
   return id;
+}
+
+async function finalizeRecord(id: string, change: ChangeRecord, actorId: string) {
+  await db.transaction(async (tx) => {
+    await tx.update(cmsProposalVersionTable).set({ content: change })
+      .where(and(eq(cmsProposalVersionTable.proposalId, id), eq(cmsProposalVersionTable.version, 1)));
+    await tx.update(cmsProposalTable).set({
+      status: "published", publishedAt: new Date(), publishedBy: actorId, updatedAt: new Date(),
+    }).where(eq(cmsProposalTable.id, id));
+  });
 }
 
 type ChangeInput = { expectedCommit: string; edits: TextEdit[]; images: NewImage[] };
@@ -122,7 +131,7 @@ async function prepareHomepageChange(input: ChangeInput) {
     if (after.get(path) !== before.get(path)) writes.push({ path, text: after.get(path) });
   }
   if (writes.length === 0) throw createHttpError("The edits do not change anything.", 400);
-  return { head, writes, summary: summarizeChange(before, after, input.images.map((image) => `/home/${image.filename}`)) };
+  return { head, writes, summary: summarizeChange(before, after, input.images.map((image) => `/home/${image.filename}`), SITE_URL) };
 }
 
 /** Dry run: what would change, for the designer to confirm. Nothing is written. */
@@ -135,9 +144,13 @@ export async function applyHomepageChange(input: ChangeInput & { rationale: stri
   requireGitDeploy();
   await enforceRateLimit();
   const { head, writes, summary } = await prepareHomepageChange(input);
+  // Create durable recovery metadata before the external Git write. If Git or
+  // finalization fails, operators can see the draft record and reconcile it.
+  const pending: ChangeRecord = { commit: "", parentCommit: head, url: "", files: writes.map((write) => write.path) };
+  const changeId = await beginRecord({ change: pending, rationale: input.rationale, author: input.author });
   const committed = await commitFiles(head, writes, `homepage: ${input.rationale.trim().split("\n")[0].slice(0, 120)}\n\nConfirmed in ChatGPT and applied by ${input.author}.`);
   const change: ChangeRecord = { commit: committed.commit, parentCommit: head, url: committed.url, files: writes.map((write) => write.path) };
-  const changeId = await record({ change, rationale: input.rationale, author: input.author, actorId: input.actorId });
+  await finalizeRecord(changeId, change, input.actorId);
   return { changeId, ...change, summary, status: "queued" as const };
 }
 
@@ -208,9 +221,11 @@ export async function undoHomepageChange(input: { id: string; rationale: string;
   const errors = homepageErrors(before, after, (sitePath) => images.has(sitePath));
   if (errors.length) throw createHttpError(`Undo would break the homepage:\n- ${errors.join("\n- ")}`, 409);
 
+  const pending: ChangeRecord = { commit: "", parentCommit: head, url: "", files: writes.map((write) => write.path), undoOf: input.id };
+  const changeId = await beginRecord({ change: pending, rationale: `Undo: ${input.rationale}`, author: input.author });
   const committed = await commitFiles(head, writes, `homepage: undo ${target.change.commit.slice(0, 7)} — ${input.rationale.trim().slice(0, 100)}\n\nUndone from ChatGPT by ${input.author}.`);
   const change: ChangeRecord = { commit: committed.commit, parentCommit: head, url: committed.url, files: writes.map((write) => write.path), undoOf: input.id };
-  const changeId = await record({ change, rationale: `Undo: ${input.rationale}`, author: input.author, actorId: input.actorId });
+  await finalizeRecord(changeId, change, input.actorId);
   await db.update(cmsProposalTable).set({ status: "closed", updatedAt: new Date() }).where(eq(cmsProposalTable.id, input.id));
   return { changeId, ...change, status: "queued" as const };
 }

@@ -10,7 +10,7 @@ const requestSchema = z.object({
 }).strict();
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
-  const denied = await requireGptAction(request);
+  const denied = await requireGptAction(request, "homepage");
   if (denied) return denied;
   try {
     const parsed = requestSchema.safeParse(await readJson(request, 10_000));

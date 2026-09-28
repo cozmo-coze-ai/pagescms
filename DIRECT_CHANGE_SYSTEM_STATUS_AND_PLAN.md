@@ -1,6 +1,6 @@
 # COZE direct editing from ChatGPT — status and handoff
 
-Status: **implemented locally in part; not set up for production** (2026-09-28).
+Status: **implemented and locally verified; not set up for production** (2026-09-28).
 
 The goal is for a trusted founder or designer to ask a private ChatGPT to make
 an editorial change without asking a developer to edit and deploy it. This is
@@ -25,7 +25,7 @@ in `CHATGPT_EDITOR_SETUP.md`.
 | ChatGPT connection | OpenAPI schema for a private GPT Action; bearer-token authentication on `/api/agent/*` | The GPT and token are not configured in production |
 | Itineraries | Read/list endpoints and `POST /api/agent/itineraries/apply`; checks `expectedUpdatedAt`, saves the full entry, publishes it, and requests a Cloudflare rebuild | One itinerary at a time; a successful save is not proof of a successful build |
 | Itinerary history | `cms_proposal` and `cms_proposal_version` hold before/after snapshots; CMS has a proposals/history screen | Requires migration `db/migrations/0021_vengeful_callisto.sql` before use |
-| Homepage (2026-09-28) | `/api/agent/homepage/*`: read files, check (dry run + summary the designer confirms), apply edits (whole file or find/replace) plus images attached in ChatGPT as one fast-forward commit, build/live status, undo. Rules in `lib/homepage-guard.ts` (tests: `npm run test:homepage`); the same rules fail the coze_client build (`check:homepage`) | Homepage only. Shared nav/footer/legal copy is frozen. Needs the coze_client `feat/gpt-homepage` branch merged first |
+| Homepage (2026-09-28) | `/api/agent/homepage/*`: read files, check (dry run + summary the designer confirms), apply edits (whole file or find/replace) plus images attached in ChatGPT as one fast-forward commit, build/live status, undo. Rules in `lib/homepage-guard.ts` (tests: `npm run test:homepage`); matching generated rules fail the coze_client build (`check:homepage`) | Homepage only. Shared copy and executable Astro are frozen. Local client build passes; changes still need isolated release/testing |
 | Deploy trigger | CMS can use `COZE_CLIENT_CLOUDFLARE_DEPLOY_HOOK_URL`; failed hook responses release the deploy claim for retry | Hook acceptance is not build success. The sweep is manual, not a scheduled guarantee |
 | Guardrails | Authentication, constrained input, stale-version checks, restricted homepage file, no payment/booking/guest-message operations | One shared GPT token does not prove which individual asked for a change |
 
@@ -47,9 +47,9 @@ be preserved. Do not treat a local build as a live release.
 
 ## What is still missing
 
-1. **Release preparation:** review the uncommitted CMS diff, migration, API
-   scopes, and the `pagescms` release process. Do not bundle unrelated
-   `coze_client` Stay changes into this release.
+1. **Release preparation:** review the uncommitted CMS and client diffs,
+   migration, API scopes, and release process. Keep them isolated from unrelated
+   client work.
 2. **Protected end-to-end test:** use a test CMS database, test GitHub branch,
    and non-public Cloudflare target. Exercise successful changes, bad tokens,
    stale versions, malformed CSS/content, failed hook/GitHub responses, failed
@@ -73,10 +73,10 @@ be preserved. Do not treat a local build as a live release.
    Vercel-status module. Replace it with Cloudflare build status, expose
    `queued/building/failed/live` to the GPT and CMS, and verify the public
    page. Until then, the Action reports only `saved` or `committed`.
-7. **Homepage editing is built locally** (layout, design, copy, images; see
-   `CHATGPT_EDITOR_SETUP.md`). Still to do: merge coze_client
-   `feat/gpt-homepage`, sandbox end-to-end test with the real GPT, then the
-   activation steps. Other pages remain out of scope.
+7. **Homepage editing is built and locally tested** (layout, design, copy,
+   images; see `CHATGPT_EDITOR_SETUP.md`). Still to do: release both repositories
+   to isolated test branches, run the sandbox end-to-end test with the real GPT,
+   then complete the activation steps. Other pages remain out of scope.
 
 ## Definition of “all set up”
 

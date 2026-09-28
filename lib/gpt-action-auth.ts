@@ -26,7 +26,7 @@ const bearer = (request: Request) => {
   return header.startsWith("Bearer ") ? header.slice(7).trim() : "";
 };
 
-export async function requireGptAction(request: Request): Promise<Response | null> {
+export async function requireGptAction(request: Request, scope: "homepage" | "legacy" = "legacy"): Promise<Response | null> {
   const supplied = bearer(request);
   const shared = process.env.COZE_GPT_ACTION_TOKEN;
   if (shared && shared.length >= 32 && equalSecret(supplied, shared)) {
@@ -34,6 +34,11 @@ export async function requireGptAction(request: Request): Promise<Response | nul
     return null;
   }
   if (supplied.startsWith(KEY_PREFIX)) {
+    // Personal keys are issued by the Homepage AI screen. They must never
+    // inherit the older shared token's itinerary/proposal permissions.
+    if (scope !== "homepage") {
+      return Response.json({ error: "This personal key is limited to the homepage editor." }, { status: 403 });
+    }
     const [key] = await db.select({ id: cmsGptKeyTable.id, label: cmsGptKeyTable.label, lastUsedAt: cmsGptKeyTable.lastUsedAt })
       .from(cmsGptKeyTable)
       .where(and(eq(cmsGptKeyTable.keyHash, sha256(supplied)), isNull(cmsGptKeyTable.revokedAt)))

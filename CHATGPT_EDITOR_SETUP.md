@@ -78,10 +78,10 @@ build and the previous version stays live.
 - Shared copy is frozen: `nav`, `footer`, `legal`, `fab`, `van`, `hosts`,
   `people`, `places`, `experiences`, `journey.steps`, `journey.peopleBody`,
   `journey.aboutAction` (other pages render them).
-- `HomePageV3.astro` keeps its frontmatter and `<BaseLayout>`; imports only
-  from the site's components/layouts/lib/i18n; no `set:html`, iframes,
-  external scripts or stylesheets, `fetch()`, environment variables or
-  request-time Astro APIs.
+- `HomePageV3.astro` may rearrange existing sections and edit CSS, but its
+  executable frontmatter, data expressions and direct visible text are locked.
+  It keeps `<BaseLayout>` and cannot add scripts, client directives, event
+  handlers, external URLs or stylesheets.
 - Stale writes are refused (`expectedCommit` must equal the branch head);
   commits are fast-forward only. At most 10 homepage changes per hour.
 
@@ -125,7 +125,8 @@ Each step needs explicit approval.
 4. **CMS secrets:** `COZE_GPT_ACTION_TOKEN` (`openssl rand -hex 32`, never in
    prompts or git), `COZE_GPT_ACTION_ACTOR_EMAIL` (an existing CMS editor),
    `COZE_CLIENT_GITHUB_REPO` (default `cozmo-coze-ai/coze_client`), `COZE_CLIENT_GITHUB_TOKEN`,
-   `COZE_CLIENT_GITHUB_BRANCH` (default `main`), and — only after step 2 is
+   `COZE_CLIENT_GITHUB_BRANCH` (default `main`), `COZE_CLIENT_SITE_URL`
+   (the isolated preview origin during sandbox testing), and — only after step 2 is
    verified — `COZE_CLIENT_CLOUDFLARE_GIT_DEPLOY_ENABLED=true`. Itinerary
    writes additionally need `COZE_CLIENT_CLOUDFLARE_DEPLOY_HOOK_URL`.
 5. **Database:** apply migrations `0021_vengeful_callisto.sql` (change

@@ -18,7 +18,9 @@ components:
       description: >-
         Either replace a whole file (path + content) or replace one exact snippet
         (path + find + replace; find must occur exactly once in the current file).
-        Prefer find/replace for small edits.
+        Prefer find/replace for small edits. In HomePageV3.astro, executable
+        frontmatter, data expressions and direct visible text are locked; only
+        existing-section arrangement and CSS are editable.
       type: object
       additionalProperties: false
       required: [path]

@@ -9,7 +9,20 @@ import { createHttpError } from "@/lib/api-error";
 import { HOME_IMAGE_DIR, HOME_TEXT_FILES, isEditablePath } from "@/lib/homepage-guard";
 
 const SHA = /^[a-f0-9]{40}$/;
-export const SITE_URL = "https://www.coze.care";
+
+function configuredSiteUrl() {
+  const value = process.env.COZE_CLIENT_SITE_URL ?? "https://www.coze.care";
+  try {
+    const url = new URL(value);
+    const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    if (url.username || url.password || (url.protocol !== "https:" && !(local && url.protocol === "http:"))) throw new Error();
+    return url.origin;
+  } catch {
+    throw createHttpError("COZE_CLIENT_SITE_URL must be an HTTPS origin (or HTTP localhost for tests).", 503);
+  }
+}
+
+export const SITE_URL = configuredSiteUrl();
 
 function config() {
   // The production site repo on the cozmo@coze.care GitHub account.
@@ -190,7 +203,7 @@ export async function buildState(commit: string): Promise<{ state: BuildState; d
     return { state: "building", detail: null, buildUrl: runs[0]?.details_url ?? legacy[0]?.target_url ?? null };
   }
   if (runs.length > 0 || legacy.some((status) => status.state === "success")) {
-    return { state: "deployed", detail: "Build finished; waiting for www.coze.care to serve it.", buildUrl: runs[0]?.details_url ?? null };
+    return { state: "deployed", detail: `Build finished; waiting for ${SITE_URL} to serve it.`, buildUrl: runs[0]?.details_url ?? null };
   }
   return { state: "queued", detail: "No Cloudflare build has reported on this commit yet.", buildUrl: null };
 }

@@ -4,7 +4,7 @@ import { applyHomepageChange, listHomepageChanges } from "@/lib/homepage-changes
 import { parseHomepageChange } from "@/lib/homepage-request";
 
 export async function GET(request: Request) {
-  const denied = await requireGptAction(request);
+  const denied = await requireGptAction(request, "homepage");
   if (denied) return denied;
   try {
     return Response.json({ items: await listHomepageChanges() });
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 // Deploy a change the designer confirmed: one commit on the production branch,
 // which Cloudflare builds and deploys automatically.
 export async function POST(request: Request) {
-  const denied = await requireGptAction(request);
+  const denied = await requireGptAction(request, "homepage");
   if (denied) return denied;
   try {
     const input = await parseHomepageChange(request, { requireConfirmation: true });

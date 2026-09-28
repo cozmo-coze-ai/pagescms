@@ -156,14 +156,69 @@ export function sharedCopyErrors(before: Record<HomeLang, unknown>, after: Recor
 const FORBIDDEN: [RegExp, string][] = [
   [/set:html/, "set:html is not allowed (raw HTML injection)"],
   [/<iframe\b/i, "<iframe> is not allowed"],
-  [/<script\b[^>]*\bsrc\s*=/i, "<script src> is not allowed; inline scripts only"],
+  [/<script\b/i, "scripts are not allowed in the homepage layout"],
+  [/\bclient:[a-z-]+/i, "client directives are not allowed in the homepage layout"],
+  [/\son[a-z]+\s*=/i, "event-handler attributes are not allowed in the homepage layout"],
   [/\bfetch\s*\(/, "fetch() is not allowed"],
-  [/process\.env|import\.meta\.env/, "environment variables are not allowed"],
+  [/process\s*(?:\.\s*env|\[\s*["']env["']\s*\])|import\s*\.\s*meta\s*\.\s*env/, "environment variables are not allowed"],
+  [/\bimport\s*\(/, "dynamic imports are not allowed"],
   [/Astro\.(locals|cookies|request|redirect)/, "request-time Astro APIs are not allowed"],
   [/javascript:/i, "javascript: URLs are not allowed"],
   [/<link\b[^>]*rel\s*=\s*["']?stylesheet/i, "external stylesheets are not allowed"],
   [/@import\b/, "@import is not allowed"],
 ];
+
+export type PageStructureLock = { frontmatter: string; expressions: string[]; staticText: string[] };
+
+function splitPage(source: string) {
+  const normalized = source.replace(/\r\n/g, "\n");
+  const match = /^(---\n[\s\S]*?\n---)\n([\s\S]*)$/.exec(normalized);
+  return match ? { frontmatter: match[1], body: match[2] } : null;
+}
+
+function withoutStyles(body: string) {
+  return body.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "");
+}
+
+// Extract top-level Astro expressions while respecting strings and nested
+// braces. CSS is removed first, so its declaration blocks are not expressions.
+function expressions(body: string) {
+  const source = withoutStyles(body);
+  const result: string[] = [];
+  for (let start = 0; start < source.length; start++) {
+    if (source[start] !== "{") continue;
+    let depth = 1, quote = "", escaped = false;
+    for (let index = start + 1; index < source.length; index++) {
+      const char = source[index];
+      if (quote) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === quote) quote = "";
+        continue;
+      }
+      if (char === "\"" || char === "'" || char === "`") { quote = char; continue; }
+      if (char === "{") depth++;
+      if (char === "}" && --depth === 0) {
+        result.push(source.slice(start, index + 1).replace(/\s+/g, " ").trim());
+        start = index;
+        break;
+      }
+    }
+  }
+  return result.sort();
+}
+
+function staticText(body: string) {
+  let source = withoutStyles(body).replace(/<!--([\s\S]*?)-->/g, "");
+  for (const expression of expressions(source)) source = source.replace(expression, "\n");
+  return source.replace(/<[^>]+>/g, "\n").split("\n")
+    .map((text) => text.replace(/\s+/g, " ").trim()).filter(Boolean).sort();
+}
+
+export function homepageStructureLock(source: string): PageStructureLock | null {
+  const page = splitPage(source);
+  return page ? { frontmatter: page.frontmatter, expressions: expressions(page.body), staticText: staticText(page.body) } : null;
+}
 
 function importErrors(source: string) {
   const errors: string[] = [];
@@ -181,13 +236,21 @@ function importErrors(source: string) {
   return errors;
 }
 
-export function pageErrors(source: string, imageExists: (sitePath: string) => boolean) {
+export function pageErrors(source: string, imageExists: (sitePath: string) => boolean, expected?: PageStructureLock | null) {
   const errors: string[] = [];
   if (new TextEncoder().encode(source).length > MAX_PAGE_BYTES) errors.push(`HomePageV3.astro is larger than ${MAX_PAGE_BYTES / 1000} KB`);
-  if (!/^---\n[\s\S]*?\n---\n/.test(source)) errors.push("HomePageV3.astro must keep its --- frontmatter block");
+  const structure = homepageStructureLock(source);
+  if (!structure) errors.push("HomePageV3.astro must keep its --- frontmatter block");
   if (!/<BaseLayout\b/.test(source)) errors.push("HomePageV3.astro must render <BaseLayout>");
   for (const [re, message] of FORBIDDEN) if (re.test(source)) errors.push(message);
   errors.push(...importErrors(source));
+  if (expected && structure) {
+    if (structure.frontmatter !== expected.frontmatter) errors.push("HomePageV3.astro executable frontmatter cannot be changed by the homepage editor");
+    if (JSON.stringify(structure.expressions) !== JSON.stringify(expected.expressions)) errors.push("HomePageV3.astro data expressions cannot be added, removed or changed; rearrange the existing sections or edit CSS instead");
+    if (JSON.stringify(structure.staticText) !== JSON.stringify(expected.staticText)) errors.push("Visible homepage text must be edited in the four language JSON files, not written directly in the layout");
+  }
+  const body = splitPage(source)?.body ?? source;
+  if (/https?:\/\/|(?:["'(])\/\//i.test(body)) errors.push("external URLs are not allowed in the homepage layout");
   for (const match of source.matchAll(/["'(](\/home\/[^"')\s?#]+)/g)) {
     if (!imageExists(match[1])) errors.push(`image ${match[1]} does not exist in public/home/ (upload it in the same change)`);
   }
@@ -255,13 +318,17 @@ export function homepageErrors(
     errors.push(...sharedCopyErrors(previous, next));
     errors.push(...translationFollowErrors(previous, next));
   }
-  errors.push(...pageErrors(after.get(HOME_PAGE_FILE) ?? "", imageExists));
+  errors.push(...pageErrors(
+    after.get(HOME_PAGE_FILE) ?? "",
+    imageExists,
+    homepageStructureLock(before.get(HOME_PAGE_FILE) ?? ""),
+  ));
   return errors;
 }
 
 // A plain-language description of a change, for ChatGPT to show the designer
 // before they confirm the deploy.
-export function summarizeChange(before: Map<string, string>, after: Map<string, string>, newImages: string[]) {
+export function summarizeChange(before: Map<string, string>, after: Map<string, string>, newImages: string[], siteUrl = "https://www.coze.care") {
   const parse = (text: string | undefined) => { try { return JSON.parse(text ?? ""); } catch { return undefined; } };
   const oldEnglish = new Map(leaves(parse(before.get(HOME_COPY_FILES.en))));
   const newEnglish = leaves(parse(after.get(HOME_COPY_FILES.en)));
@@ -286,7 +353,7 @@ export function summarizeChange(before: Map<string, string>, after: Map<string, 
     languagesUpdated: translated.length ? ["en", ...translated] : textChanges.length ? ["en"] : [],
     layout: added || removed ? { linesAdded: added, linesRemoved: removed } : null,
     newImages,
-    liveUrls: ["https://www.coze.care/", "https://www.coze.care/ko/", "https://www.coze.care/ja/", "https://www.coze.care/zh/"],
+    liveUrls: ["/", "/ko/", "/ja/", "/zh/"].map((path) => new URL(path, siteUrl).href),
   };
 }
 

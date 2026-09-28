@@ -5,7 +5,7 @@ import { parseHomepageChange } from "@/lib/homepage-request";
 
 // Dry run: validate a change and summarize it for the designer. Writes nothing.
 export async function POST(request: Request) {
-  const denied = await requireGptAction(request);
+  const denied = await requireGptAction(request, "homepage");
   if (denied) return denied;
   try {
     const input = await parseHomepageChange(request, { requireConfirmation: false });

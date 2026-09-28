@@ -63,10 +63,16 @@ test("rejects price mismatches and shared-copy edits", () => {
 test("rejects unsafe or broken layout", () => {
   const cases: [string, RegExp][] = [
     [page.replace("<main>", "<main set:html={x}>"), /set:html/],
-    [page.replace("<main>", '<script src="https://x.example/a.js"></script><main>'), /script src/],
+    [page.replace("<main>", '<script src="https://x.example/a.js"></script><main>'), /scripts are not allowed/],
     [page.replace("---\n", "---\nimport fs from 'node:fs'\n"), /not allowed/],
+    [page.replace("---\n", "---\nconst fs = await import('node:fs')\n"), /dynamic imports|frontmatter/],
     [page.replace("---\n", "---\nimport q from '../../../platform/lib/stay/quote'\n"), /outside the allowed folders/],
     [page.replace("<main>", "<main data-x={process.env.X}>"), /environment variables/],
+    [page.replace("<main>", "<main data-x={process['env'].X}>"), /environment variables/],
+    [page.replace("<main>", "<main>{globalThis['fetch']('https:\/\/example.com')}</main>"), /data expressions|external URLs/],
+    [page.replace("<main>", "<main>Untranslated visible text"), /Visible homepage text/],
+    [page.replace("<main>", "<main onmouseover=\"alert(1)\">"), /event-handler/],
+    [page.replace("color:red", "background:url(https://example.com/pixel)"), /external URLs/],
     [page.replaceAll("BaseLayout", "Layout"), /BaseLayout/],
     [page.slice(4), /frontmatter/],
     [page.replace("/kelly/living-room.jpg", "/home/new.jpg"), /does not exist/],
