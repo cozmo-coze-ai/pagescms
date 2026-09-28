@@ -7,14 +7,29 @@ declare global {
   var __cozeCmsPostgresClient: ReturnType<typeof postgres> | undefined;
 }
 
+const rawConnectionString =
+  process.env.SG_POSTGRES_URL ?? process.env.POSTGRES_URL ?? process.env.DATABASE_URL!;
+
+// Supabase's shared pooler uses 5432 for session mode and 6543 for
+// transaction mode. Vercel functions are transient clients, so session mode
+// can exhaust the small per-project session pool even at modest traffic.
+const runtimeUrl = new URL(rawConnectionString);
+const usesSupabaseSharedPooler = runtimeUrl.hostname.endsWith(".pooler.supabase.com");
+if (usesSupabaseSharedPooler && (!runtimeUrl.port || runtimeUrl.port === "5432")) {
+  runtimeUrl.port = "6543";
+}
+const usesTransactionPooler = usesSupabaseSharedPooler && runtimeUrl.port === "6543";
+
 const client =
   globalThis.__cozeCmsPostgresClient
-  // SG_POSTGRES_URL is the pooled Singapore Neon connection (colocated with
-  // the Seoul Vercel function region); POSTGRES_URL/DATABASE_URL are the
-  // older US Neon vars, kept only as a fallback for local dev.
-  ?? postgres(process.env.SG_POSTGRES_URL ?? process.env.POSTGRES_URL ?? process.env.DATABASE_URL!, {
-    // Keep conservative pool size in dev to avoid local connection spikes.
-    max: parseInt(process.env.POSTGRES_MAX_CONNECTIONS || "5", 10),
+  ?? postgres(runtimeUrl.toString(), {
+    // Each serverless instance gets its own client pool. One connection is
+    // enough here; Supavisor handles concurrency across instances.
+    max: parseInt(process.env.POSTGRES_MAX_CONNECTIONS || "1", 10),
+    idle_timeout: parseInt(process.env.POSTGRES_IDLE_TIMEOUT || "20", 10),
+    max_lifetime: parseInt(process.env.POSTGRES_MAX_LIFETIME || "1800", 10),
+    // Supabase transaction mode does not support prepared statements.
+    prepare: !usesTransactionPooler,
   });
 
 if (process.env.NODE_ENV !== "production") {

@@ -148,6 +148,52 @@ const cmsLanguageTable = pgTable("cms_language", {
   sortOrder: integer("sort_order").notNull().default(0)
 });
 
+// ChatGPT can only submit immutable proposal versions. These rows never feed
+// the public content fetcher; an Admin must apply an approved version.
+const cmsProposalTable = pgTable("cms_proposal", {
+  id: text("id").primaryKey(),
+  kind: text("kind").notNull(),
+  target: text("target"),
+  baseUpdatedAt: timestamp("base_updated_at"),
+  status: text("status").notNull().default("draft"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  publishedAt: timestamp("published_at"),
+  publishedBy: text("published_by").references(() => userTable.id),
+}, table => ({
+  kindCheck: check("cms_proposal_kind_check", sql`${table.kind} in ('itinerary', 'homepage_design')`),
+  statusCheck: check("cms_proposal_status_check", sql`${table.status} in ('draft', 'published', 'closed')`),
+}));
+
+const cmsProposalVersionTable = pgTable("cms_proposal_version", {
+  id: serial("id").primaryKey(),
+  proposalId: text("proposal_id").notNull().references(() => cmsProposalTable.id),
+  version: integer("version").notNull(),
+  content: jsonb("content").notNull(),
+  rationale: text("rationale").notNull(),
+  author: text("author").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, table => ({
+  proposalVersionUnique: uniqueIndex("uq_cms_proposal_version").on(table.proposalId, table.version),
+}));
+
+// Personal API keys for the ChatGPT editor, issued from admin.coze.care. Only
+// a SHA-256 hash is stored; the key is shown once when created. `label` names
+// the person (it is recorded as the author of their changes). Revoked keys
+// stop working immediately.
+const cmsGptKeyTable = pgTable("cms_gpt_key", {
+  id: text("id").primaryKey(),
+  label: text("label").notNull(),
+  prefix: text("prefix").notNull(),
+  keyHash: text("key_hash").notNull(),
+  createdBy: text("created_by").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at"),
+  revokedAt: timestamp("revoked_at"),
+}, table => ({
+  uq_cms_gpt_key_hash: uniqueIndex("uq_cms_gpt_key_hash").on(table.keyHash),
+}));
+
 // One row = one guest page (gka, gkb, hanbok, celebration…) in one language.
 // `fields` is the page's whole structured content (strings, *Html rich text,
 // image refs into the pages-media bucket), validated against the per-page
@@ -173,6 +219,9 @@ export {
   verificationTable,
   cmsItineraryTable,
   cmsHomepageContentTable,
+  cmsProposalTable,
+  cmsProposalVersionTable,
+  cmsGptKeyTable,
   cmsDeployTriggerTable,
   cmsEditorInviteTable,
   cmsLanguageTable,

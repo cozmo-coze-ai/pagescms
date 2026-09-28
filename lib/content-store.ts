@@ -21,7 +21,7 @@ import { renameMediaFolder } from "@/lib/media-store";
 
 const config = { object: cmsConfig };
 
-// Fire-and-forget: after a successful save, ask Vercel to rebuild
+// After a successful save, ask Cloudflare Workers Builds to rebuild
 // coze_client so the public site picks up the change without a manual
 // restart. Debounced via a DB row (not in-memory — this runs across
 // separate serverless invocations that don't share memory) so a burst of
@@ -39,7 +39,7 @@ const DEPLOY_TRIGGER_DEBOUNCE_SECONDS = 60;
 // Durably record "content changed". Runs on every mutation before any
 // trigger attempt, so no save can be forgotten: whether a build fires now
 // or not, dirty_at > triggered_at keeps saying "a deploy is owed" until one
-// actually fires after the change.
+// is accepted by the deploy hook after the change.
 const markContentDirty = async () => {
   await db.execute(sql`
     insert into ${cmsDeployTriggerTable} (id, triggered_at, dirty_at)
@@ -50,9 +50,9 @@ const markContentDirty = async () => {
 
 // Fire iff a deploy is owed (content dirtier than the last trigger) and the
 // debounce window has passed. Atomic single statement, so concurrent
-// attempts (saves, trailing re-fires, the cron sweep) elect one winner and
-// the rest do nothing. After a successful fire, triggered_at > dirty_at
-// makes further attempts no-ops until the next save — no redundant builds.
+// attempts (saves, trailing re-fires, the manual sweep) elect one winner and
+// the rest do nothing. A failed HTTP request releases its claim, so the next
+// attempt can retry instead of permanently treating the content as deployed.
 const attemptDeployTrigger = async (hookUrl: string): Promise<boolean> => {
   const won = await db.execute(sql`
     update ${cmsDeployTriggerTable}
@@ -60,25 +60,34 @@ const attemptDeployTrigger = async (hookUrl: string): Promise<boolean> => {
     where ${cmsDeployTriggerTable.id} = 1
       and ${cmsDeployTriggerTable.dirtyAt} > ${cmsDeployTriggerTable.triggeredAt}
       and ${cmsDeployTriggerTable.triggeredAt} < now() - interval '${sql.raw(`${DEPLOY_TRIGGER_DEBOUNCE_SECONDS} seconds`)}'
-    returning id
+    returning triggered_at
   `);
   if (won.length === 0) return false;
-
-  const response = await fetch(hookUrl, { method: "POST" });
-  if (!response.ok) {
-    // Surface dead/revoked hook URLs in the logs instead of failing silently.
-    console.warn("[content-store] coze_client deploy hook returned an error", {
-      status: response.status,
-      statusText: response.statusText,
-    });
+  const claimedAt = (won[0] as { triggered_at: Date }).triggered_at;
+  try {
+    const response = await fetch(hookUrl, { method: "POST" });
+    if (!response.ok) throw new Error(`Cloudflare deploy hook returned ${response.status}`);
+    return true;
+  } catch (error) {
+    try {
+      await db.execute(sql`
+        update ${cmsDeployTriggerTable}
+        set triggered_at = to_timestamp(0)
+        where ${cmsDeployTriggerTable.id} = 1
+          and ${cmsDeployTriggerTable.triggeredAt} = ${claimedAt}
+      `);
+    } catch (releaseError) {
+      console.warn("[content-store] failed to release deploy claim", {
+        error: releaseError instanceof Error ? releaseError.message : String(releaseError),
+      });
+    }
+    throw error;
   }
-  return true;
 };
 
-// Used by /api/cron/deploy-sweep — the durable backstop that guarantees a
-// dirty save eventually deploys even if every in-process attempt died.
+// Used by /api/cron/deploy-sweep as a manual backstop for a dirty save.
 const sweepDeployTrigger = async (): Promise<"fired" | "clean" | "unconfigured"> => {
-  const hookUrl = process.env.COZE_CLIENT_DEPLOY_HOOK_URL;
+  const hookUrl = process.env.COZE_CLIENT_CLOUDFLARE_DEPLOY_HOOK_URL ?? process.env.COZE_CLIENT_DEPLOY_HOOK_URL;
   if (!hookUrl) return "unconfigured";
   return (await attemptDeployTrigger(hookUrl)) ? "fired" : "clean";
 };
@@ -88,7 +97,7 @@ const sweepDeployTrigger = async (): Promise<"fired" | "clean" | "unconfigured">
 // see — e.g. saving an itinerary that was a draft and stays a draft.
 const triggerCozeClientDeploy = async (affectsSite: boolean = true) => {
   if (!affectsSite) return;
-  const hookUrl = process.env.COZE_CLIENT_DEPLOY_HOOK_URL;
+  const hookUrl = process.env.COZE_CLIENT_CLOUDFLARE_DEPLOY_HOOK_URL ?? process.env.COZE_CLIENT_DEPLOY_HOOK_URL;
   if (!hookUrl) return;
 
   try {
@@ -97,9 +106,8 @@ const triggerCozeClientDeploy = async (affectsSite: boolean = true) => {
     const fired = await attemptDeployTrigger(hookUrl);
     if (!fired) {
       // Suppressed by the debounce: re-attempt once the window expires
-      // (post-response; Vercel keeps the function alive for `after`
-      // callbacks). Best-effort fast path — if this dies, the cron sweep
-      // still picks the dirty flag up.
+      // (post-response; Next.js keeps the function alive for `after`
+      // callbacks). Best-effort fast path; the manual sweep can also retry.
       after(async () => {
         await new Promise((resolve) =>
           setTimeout(resolve, (DEPLOY_TRIGGER_DEBOUNCE_SECONDS + 5) * 1000),

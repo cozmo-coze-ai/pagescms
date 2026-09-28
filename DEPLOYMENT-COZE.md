@@ -63,15 +63,14 @@ or edit content.
      (Settings → Account permissions → Email addresses → Read-only).
 - **Runtime queries use the pooled connection string; migrations use the
   non-pooled one — don't mix these up.** `db/index.ts` connects with
-  `SG_POSTGRES_URL` (pooled), falling back to the older `POSTGRES_URL` /
-  `DATABASE_URL` only for local dev. `drizzle.config.ts` connects with
-  `SG_DATABASE_URL_UNPOOLED` (no `-pooler` in the hostname) because the
-  pooled string breaks the `postbuild` migration step (`npm run
-  db:migrate`, via drizzle-kit) during Vercel builds. Pointing runtime
-  queries at the non-pooled string (as this deployment did originally)
-  is a well-known cause of sluggish response times on Vercel+Neon — every
-  request opens a slow, direct connection instead of reusing a pooled one.
-  Don't undo this.
+  `SG_POSTGRES_URL`, which uses Supabase Transaction pooler mode on port
+  `6543`, falling back to the older `POSTGRES_URL` / `DATABASE_URL` only for
+  local dev. `drizzle.config.ts` connects with
+  `SG_DATABASE_URL_UNPOOLED`, which currently uses Supabase Session pooler
+  mode on port `5432` so Vercel's IPv4-only build environment can run the
+  `postbuild` migration step (`npm run db:migrate`, via drizzle-kit).
+  Runtime serverless functions must not use the session-mode URL: its small
+  fixed client pool can be exhausted by idle function instances.
 - **The Neon DB region must match the Vercel function region.** This
   project's functions run in `icn1` (Seoul); the original Neon resource
   defaulted to `us-east-1`, so every DB round trip crossed the Pacific —

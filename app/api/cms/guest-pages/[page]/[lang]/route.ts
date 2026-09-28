@@ -36,7 +36,9 @@ export async function PUT(request: Request, context: Params) {
 
     const { page, lang } = await context.params;
     const body = await request.json();
-    const result = await saveGuestPage(page, lang, body.fields ?? {}, user.id);
+    const result = await saveGuestPage(page, lang, body.fields ?? {}, user.id, {
+      keepMachineTranslated: body.keepMachineTranslated === true,
+    });
 
     return Response.json({ status: "success", data: result });
   } catch (error) {

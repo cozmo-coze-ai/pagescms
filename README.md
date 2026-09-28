@@ -21,16 +21,13 @@ email + password, and the editing UI is the custom "studio" under `/cms`.
   (`admin` | `editor`) live on the user row; `ADMIN_EMAILS` is the
   bootstrap-owner escape hatch. Managed from `/cms/settings`.
 
-## Development
+## Database connections
 
-```
-npm install
-npm run dev
-```
+`SG_POSTGRES_URL` is the application runtime connection. On Vercel it must use
+Supabase transaction pooler mode (port `6543`); the database client also
+normalizes an accidental Supabase session-pooler URL from `5432` to `6543`.
+Prepared statements are disabled for transaction mode, and each function
+instance keeps at most one short-lived connection.
 
-Environment variables: see `.env.local.example`. Deployment specifics and
-operational gotchas: see `DEPLOYMENT-COZE.md`.
-
-## License
-
-MIT — retains the license of the original Pages CMS project.
+`SG_DATABASE_URL_UNPOOLED` is used only by Drizzle migrations. Keep it on a
+direct or session-mode connection because migrations require session semantics.
