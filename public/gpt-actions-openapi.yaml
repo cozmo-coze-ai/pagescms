@@ -1,0 +1,183 @@
+openapi: 3.1.0
+info:
+  title: COZE Homepage Editor
+  version: 3.1.0
+  description: >-
+    Change the www.coze.care homepage (layout, design, four-language copy and
+    images). Every change is checked, confirmed by the user, versioned as a Git
+    commit, and deployed automatically by Cloudflare.
+servers:
+  - url: https://cms.coze.care
+components:
+  securitySchemes:
+    editorToken:
+      type: http
+      scheme: bearer
+  schemas:
+    HomepageEdit:
+      description: >-
+        Either replace a whole file (path + content) or replace one exact snippet
+        (path + find + replace; find must occur exactly once in the current file).
+        Prefer find/replace for small edits.
+      type: object
+      additionalProperties: false
+      required: [path]
+      properties:
+        path:
+          type: string
+          enum:
+            - src/components/pages/HomePageV3.astro
+            - src/i18n/pages/home/en.json
+            - src/i18n/pages/home/ko.json
+            - src/i18n/pages/home/ja.json
+            - src/i18n/pages/home/zh.json
+        content: { type: string, description: Full new file content (whole-file edit) }
+        find: { type: string, description: Exact current text to replace; must occur exactly once }
+        replace: { type: string, description: Replacement text for find }
+    HomepageChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedCommit, rationale]
+      properties:
+        expectedCommit: { type: string, description: The commit from getHomepage or getHomepageFile }
+        rationale: { type: string, description: What changed and why, in one or two sentences }
+        edits:
+          type: array
+          maxItems: 30
+          items: { $ref: '#/components/schemas/HomepageEdit' }
+        openaiFileIdRefs:
+          type: array
+          maxItems: 5
+          description: Images the user attached in this chat, to save under /home/.
+          items: { type: string }
+        imageFilenames:
+          type: array
+          maxItems: 5
+          description: One filename per attached image, same order (lowercase-dashes, .jpg/.png/.webp). Saved as public/home/<name>, used in the page as /home/<name>.
+          items: { type: string }
+        confirmedByUser:
+          type: boolean
+          description: Only for applyHomepageChange, and only true after the user explicitly confirmed the summary from checkHomepageChange.
+    HomepageChangeResult:
+      type: object
+      properties:
+        changeId: { type: string }
+        commit: { type: string }
+        parentCommit: { type: string }
+        url: { type: string, description: GitHub commit page }
+        files: { type: array, items: { type: string } }
+        status: { type: string }
+        next: { type: string }
+security:
+  - editorToken: []
+paths:
+  /api/agent/homepage:
+    get:
+      operationId: getHomepage
+      summary: >-
+        Start here for any homepage request. Returns the commit to base changes on,
+        the editable files, uploaded images (/home/...), live URLs and the rules.
+      responses:
+        '200': { description: Homepage overview }
+  /api/agent/homepage/file:
+    get:
+      operationId: getHomepageFile
+      summary: Read one editable homepage file at the current commit. Always read a file before editing it.
+      parameters:
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - src/components/pages/HomePageV3.astro
+              - src/i18n/pages/home/en.json
+              - src/i18n/pages/home/ko.json
+              - src/i18n/pages/home/ja.json
+              - src/i18n/pages/home/zh.json
+      responses:
+        '200': { description: File content and commit }
+  /api/agent/homepage/changes:
+    get:
+      operationId: listHomepageChanges
+      summary: Recent homepage changes (newest first) with their changeId, reason, author and commit.
+      responses:
+        '200': { description: Change history }
+    post:
+      operationId: applyHomepageChange
+      x-openai-isConsequential: true
+      summary: >-
+        DEPLOY a homepage change the user has explicitly confirmed. Call
+        checkHomepageChange first, show the user its summary, and only after
+        they say yes send the same body with confirmedByUser true. It becomes
+        one commit on the production branch, which Cloudflare builds and
+        deploys automatically; poll getHomepageChange for the result.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HomepageChangeRequest' }
+      responses:
+        '201': { description: Committed and deploying; not live yet, content: { application/json: { schema: { $ref: '#/components/schemas/HomepageChangeResult' } } } }
+        '400': { description: Rejected; the message lists every problem to fix }
+        '409': { description: The homepage changed since it was read; read again and re-check }
+        '428': { description: Missing user confirmation; run checkHomepageChange and ask the user }
+        '429': { description: Too many changes this hour; combine edits }
+  /api/agent/homepage/check:
+    post:
+      operationId: checkHomepageChange
+      summary: >-
+        Dry run. Validate a homepage change and get a plain-language summary
+        (text before/after, languages, layout lines, new images) to show the
+        user for confirmation. Writes nothing. Always call this before
+        applyHomepageChange.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HomepageChangeRequest' }
+      responses:
+        '200': { description: The change passes; summary to confirm with the user }
+        '400': { description: Rejected; the message lists every problem to fix }
+        '409': { description: The homepage changed since it was read; read again }
+  /api/agent/homepage/changes/{id}:
+    get:
+      operationId: getHomepageChange
+      summary: >-
+        Status of one change. build.state is queued, building, failed (with the
+        error), deployed (built, not yet served), live, or superseded (a later
+        change containing it is live). Only call a change live when state is live.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Change and build status }
+        '404': { description: Not found }
+  /api/agent/homepage/changes/{id}/undo:
+    post:
+      operationId: undoHomepageChange
+      x-openai-isConsequential: true
+      summary: >-
+        Undo one change by restoring the files it touched, as a new change.
+        Refused if those files changed again afterwards (undo the later change first).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [rationale, confirmedByUser]
+              properties:
+                rationale: { type: string }
+                confirmedByUser: { type: boolean, description: true only after the user explicitly confirmed the undo }
+      responses:
+        '201': { description: Undo committed; poll getHomepageChange with the new changeId }
+        '409': { description: Cannot undo safely }

@@ -21,7 +21,10 @@ export function proxy(request: NextRequest) {
 		return NextResponse.next();
 	}
 
-	if (pathname.startsWith("/api/") && request.method !== "GET") {
+	// GPT Actions use a dedicated bearer token, not browser cookies. Their
+	// server-to-server POST has no same-origin browser Origin header; each agent
+	// route authenticates the bearer token before reading or writing anything.
+	if (pathname.startsWith("/api/") && !pathname.startsWith("/api/agent/") && request.method !== "GET") {
 		const originHeader = request.headers.get("Origin");
 		const hostHeader = request.headers.get("Host");
 		if (!originHeader || !hostHeader || !isAllowedOrigin(originHeader, hostHeader)) {
