@@ -82,4 +82,12 @@ Wrangler dry-run build passed. Native local discovery did not resolve connected
 apps, so the source `.app.json` check is not proof of company app availability.
 Verify the required app in the actual workspace import results.
 
+Release `1577758fa469d099514692ae0d360c3e2ef1568c` was pushed to `main`.
+Cloudflare CMS build `32453656-a722-4f7d-9c87-862d67df098f` succeeded in 103 seconds;
+editor build `9ed50447-9ace-47df-b62d-9c4be7259d3b` succeeded in 36 seconds after
+the CMS build. Post-deploy checks returned HTTP 200 for CMS, the public homepage
+and editor health, with both configured flags true. Plugin instructions, app ID
+and runtime source were unchanged. Workspace import and daily sync remain
+unverified until the owner completes the company import and reads both systems.
+
 Official source: [OpenAI: import and sync workspace plugins from GitHub](https://learn.chatgpt.com/docs/enterprise/plugin-management).
