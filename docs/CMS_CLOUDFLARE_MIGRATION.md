@@ -1,6 +1,6 @@
 # CMS hosting migration - 2026-09-29
 
-Status: **Live on Cloudflare; automatic deployment verified.** The normal `https://cms.coze.care` address serves Worker `coze-cms`, using the existing Supabase database and credentials. Hosted build `07ca7d62-6a88-43d7-964a-e5b4d3a8fc21` succeeded at 2026-09-29 06:54:42 UTC (15:54 KST), commit `e4c66053aa96851fe87d54dda33a60ecbc03897e`, version `ec3074c9-30ad-4bd9-8c73-59cf1d9cbf17`. End-to-end build/deploy/cache upload: 152 seconds, an observed result rather than a future guarantee. The old Vercel deployment and domain association remain for rollback until the owner confirms one existing-account sign-in; new Vercel Git deployments are disabled.
+Status: **Live on Cloudflare; automatic deployment verified.** The normal `https://cms.coze.care` address serves Worker `coze-cms`, using the existing Supabase database and credentials. Hosted build `07ca7d62-6a88-43d7-964a-e5b4d3a8fc21` succeeded at 2026-09-29 06:54:42 UTC (15:54 KST), commit `e4c66053aa96851fe87d54dda33a60ecbc03897e`, version `ec3074c9-30ad-4bd9-8c73-59cf1d9cbf17`. End-to-end build/deploy/cache upload: 152 seconds, an observed result rather than a future guarantee. The owner confirmed existing itinerary text and photos load. At 2026-09-29 07:00:46 UTC (16:00 KST), the CMS domain association and Git repository link were removed from the Vercel project. The old deployment remains READY for rollback; production traffic and automatic builds use Cloudflare.
 
 ## Scope and source
 
@@ -40,7 +40,7 @@ The first hosted build (`955ead01-7991-4115-bb63-4121916133cc`) failed before de
 ## Verification completed
 
 - Canonical URL checks passed using the normal system resolver: Cloudflare headers present, Vercel headers absent, sign-in/static JavaScript HTTP 200, admin PMS key API HTTP 200 with the existing shared secret, anonymous private APIs HTTP 401, and `/cms` redirects to sign-in. Next may send this as a streamed HTTP 200 with a sign-in redirect marker; browser navigation was verified.
-- Real production browser checks passed at 320/390/1440px with Cloudflare response headers, no horizontal overflow and no JavaScript errors. No production login or content write was performed. The minute cron is configured; public homepage and admin PMS remain HTTP 200.
+- Real production browser checks passed at 320/390/1440px with Cloudflare response headers, no horizontal overflow and no JavaScript errors. The automated checks performed no production login or content write; the owner subsequently confirmed the existing itinerary text and photos appear. The minute cron is configured; public homepage and admin PMS remain HTTP 200.
 
 - Next 16.3.3, OpenNext 1.20.6, Wrangler 4.143.0. Clean release TypeScript, full OpenNext build, 17 focused tests and lint passed (zero errors, nine existing warnings). The earlier mixed-worktree OAuth tests are not part of this production release.
 - Local workerd plus disposable PostgreSQL: real email/password sign-in, invite-only registration, editor CRUD, viewer rejection, CSRF rejection, validation, 12 concurrent reads and authenticated cron checks passed. All test content writes were in localhost PostgreSQL. Test services and synthetic environment files were removed.
@@ -63,6 +63,7 @@ Credential root: `C:\Users\cozmo\.codex\credentials\coze-cms`. DPAPI files are e
 - `cloudflare-resources.json`, `remote-cms-read-check.json`, `email-test.json`, `production-stage.json`, `build-trigger.json`: nonsecret resource/verification receipts.
 - `dns-before-cloudflare-20260929.json`: original CMS DNS record; never overwrite.
 - `production-verification.json`: generated only by a successful canonical-origin verification; check its timestamp.
+- `vercel-before-cleanup.json` and `vercel-cleanup.json`: saved project/domain/Git metadata and confirmed cleanup receipt, with no credentials.
 
 The Cloudflare agent token is in sibling `coze-cloudflare/api-token.dpapi`. Zone DNS Edit is now verified in addition to Workers Scripts/Builds, Hyperdrive, CA and KV access. The production build-status secret reuses this existing authorized token; it is not a narrowly scoped read-only token.
 
@@ -73,15 +74,15 @@ Private helpers under `C:\Users\cozmo\.codex\tmp`:
 - `cms-build-status.mjs`: selected build metadata and last log lines.
 - `verify-cms-production.mjs`: canonical host, real admin PMS read, unauthenticated API rejection, static asset, cron and other public service checks; writes the verification receipt.
 - `cms-production-browser-check.cjs`: read-only production sign-in rendering at 320/390/1440px and protected-page redirect.
-- `rollback-cms-domain.mjs`: prints the rollback plan by default; `--execute` disables only the CMS cron, detaches only its verified CMS custom domain and restores the saved Vercel CNAME.
+- `rollback-cms-domain.mjs`: prints the rollback plan by default; `--execute` first restores and verifies the saved Vercel domain association, then disables only the CMS cron, detaches only its verified CMS custom domain and restores the saved Vercel CNAME. The updated Vercel preflight is syntax/dry-run checked; no post-cleanup rollback was executed.
 
 ## Cutover and rollback
 
-Vercel rollback project: `prj_J5IY2XhD1wy7lAEkeAeMdLEg3adD`, team `team_FDOC5YuqXKM1u5suic9W2kFn`, old production deployment `dpl_BBLNaqs2SphsyvB19HQYN7T8evXn` at commit `4deeb0e`. `vercel.json` disables new Vercel Git deployments. Keep that existing deployment while checking real owner sign-in at the canonical address; do not delete the project prematurely.
+Vercel rollback project: `prj_J5IY2XhD1wy7lAEkeAeMdLEg3adD`, team `team_FDOC5YuqXKM1u5suic9W2kFn`, old production deployment `dpl_BBLNaqs2SphsyvB19HQYN7T8evXn` at commit `4deeb0e`. The Vercel Git link is disconnected and `cms.coze.care` is absent from the project. The remaining `pagescms-one.vercel.app` alias and old READY deployment are deliberately retained for rollback. No other Vercel project, domain, GitHub app installation or credential was removed. `vercel.json` also prevents automatic Vercel Git deployment if the repository is accidentally linked again.
 
-Original CMS DNS: DNS-only CNAME `e4c35c709ef23ba6.vercel-dns-017.com`, automatic TTL. A failed canonical verification after cutover requires restoring this record and disabling the Cloudflare CMS cron so only one host can sweep content publications. No other domain or Worker belongs in this rollback. The tested rollback helper accepts successful HTTP 204 responses from domain deletion. A cached HTTP 200 response from Vercel immediately after changing DNS is expected propagation, not evidence that the new Worker failed: first check fresh public DNS and the new host with normal TLS verification. The initial cutover was briefly rolled back after this overly strict check; the helper was corrected and the domain attached again. The local cached Vercel record had a five-minute TTL.
+Original CMS DNS: DNS-only CNAME `e4c35c709ef23ba6.vercel-dns-017.com`, automatic TTL. A rollback now requires reattaching and verifying `cms.coze.care` on the retained Vercel project before restoring this DNS record. Disable the Cloudflare CMS cron so only one host can sweep content publications. No other domain or Worker belongs in this rollback. The tested rollback helper accepts successful HTTP 204 responses from domain deletion. A cached HTTP 200 response from Vercel immediately after changing DNS is expected propagation, not evidence that the new Worker failed: first check fresh public DNS and the new host with normal TLS verification. The initial cutover was briefly rolled back after this overly strict check; the helper was corrected and the domain attached again. The local cached Vercel record had a five-minute TTL.
 
-All technical cutover checks above passed. Remaining handoff: the owner signs in once at `https://cms.coze.care` with an existing account. Then remove the old Vercel CMS domain/build integration while retaining the old deployment for rollback. No production password reset, invite, guest message or test-content publication is needed.
+Migration handoff and Vercel cleanup are complete. The owner confirmed the itinerary content loads, and post-cleanup checks again returned HTTP 200 for canonical CMS (Cloudflare headers, no Vercel headers), the existing admin PMS key-list connection, public homepage and admin PMS. The original project/deployment remains only as a rollback resource. No production password reset, invite, guest message or test-content publication was needed.
 
 ## Dependency disposition
 
