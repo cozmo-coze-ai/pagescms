@@ -1,0 +1,20 @@
+{
+  "name": "coze-team",
+  "interface": {
+    "displayName": "COZE HOSPITALITY 3.0"
+  },
+  "plugins": [
+    {
+      "name": "gpt-96a7a163626e05f4185de181791ba82a",
+      "source": {
+        "source": "local",
+        "path": "./chatgpt-editor/plugin/coze-editor"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

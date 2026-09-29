@@ -2,6 +2,8 @@
 
 ## Current connection
 
+**Company auto-update setup:** the root `.agents/plugins/marketplace.json` now references the existing plugin bundle, and the editor release check validates that catalog. See [central plugin updates](CHATGPT_PLUGIN_AUTO_UPDATES.md) for the exact import fields. The owner confirmed **Import marketplace** is available. This prepares GitHub sync; workspace import, app access and the first successful sync still require verification. Personal plugin sharing remains separate.
+
 **Canonical source:** CMS and the complete ChatGPT connector now belong to `cozmo-coze-ai/pagescms/main`. The CMS is at the repository root; the independent connector and plugin bundle are in [`chatgpt-editor/`](../chatgpt-editor/). Source imported from the verified standalone commit `91eb8d07fb58d655a2f0d445f29161ea8293ccbe`. Each Worker has its own Cloudflare Git build. Existing domains, OAuth state, database access and runtime secrets are preserved.
 
 The local `pagescms` checkout was synchronized with production main after all 92 mixed prototype files were backed up and verified. That obsolete prototype is not required by either live Worker. The original snapshot remains on `backup/cms-editor-work-20260929`, in Git stash, and in the owner's protected local backup folder.

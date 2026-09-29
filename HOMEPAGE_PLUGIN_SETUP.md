@@ -1,5 +1,7 @@
 # COZE Homepage & Itinerary Editor
 
+For company installation and centralized updates, use [the GitHub marketplace setup](docs/CHATGPT_PLUGIN_AUTO_UPDATES.md). Import `https://github.com/cozmo-coze-ai/pagescms`, leave Path empty, and select branch `main`. Workspace import/connection must be completed and verified before claiming company availability. The personal connection below remains available during setup.
+
 Use the existing [COZE app](https://chatgpt.com/plugins/plugin_asdk_app_6abb1da4205c81919a0468aee3675954) and [workflow plugin](https://chatgpt.com/plugins/plugin_ce7a0f7893008191a2b49a669dea575d). They work together; do not create another same-name app.
 
 1. Open the app in the ChatGPT workspace where it was created. Select **Manage app → Refresh tools**.

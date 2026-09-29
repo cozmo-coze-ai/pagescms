@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "npm run build:widget && tsc --noEmit && tsc -p tsconfig.widget.json --noEmit",
+    "check": "npm run check:plugin && npm run build:widget && tsc --noEmit && tsc -p tsconfig.widget.json --noEmit",
+    "check:plugin": "node scripts/check-plugin.mjs",
     "test": "node --experimental-transform-types --test test/*.test.ts",
     "test:runtime": "npm run build && node test/runtime.mjs",
     "test:widget": "npm run build:widget && node test/widget.mjs",
