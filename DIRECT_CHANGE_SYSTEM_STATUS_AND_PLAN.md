@@ -1,6 +1,6 @@
 # COZE direct editing from ChatGPT — status and handoff
 
-Status: **implemented and locally verified; not set up for production** (2026-09-28).
+Historical status (2026-09-28). The current production system uses the Cloudflare MCP plugin in `chatgpt-editor/`, alongside the Cloudflare CMS in this repository. Read [the current handoff](docs/CHATGPT_EDITOR_HANDOFF.md) for verified deployments and remaining ChatGPT activation. The earlier GPT Actions plan below is retained for reference.
 
 The goal is for a trusted founder or designer to ask a private ChatGPT to make
 an editorial change without asking a developer to edit and deploy it. This is

@@ -1,5 +1,7 @@
 # COZE direct ChatGPT editing
 
+> Current production setup: the Cloudflare MCP plugin supports homepage and itinerary editing from [`chatgpt-editor/`](chatgpt-editor/). Follow [HOMEPAGE_PLUGIN_SETUP.md](HOMEPAGE_PLUGIN_SETUP.md) and [the current handoff](docs/CHATGPT_EDITOR_HANDOFF.md). The GPT Actions instructions below are retained as historical documentation.
+
 Goal: owner/designer → private ChatGPT (Custom GPT Action) → scoped API on
 cms.coze.care → a versioned change → automatic Cloudflare deploy →
 www.coze.care. No developer relay and no separate approval: **the person in

@@ -1,5 +1,7 @@
 # CMS hosting migration - 2026-09-29
 
+Latest source update: the canonical `pagescms/main` now includes the independent ChatGPT homepage/itinerary Worker under `chatgpt-editor/`. Its automatic build is separate from the root CMS build. The main local checkout is clean and the original mixed prototype is backed up. See [the current editor handoff](CHATGPT_EDITOR_HANDOFF.md); older checkout descriptions below record the original migration.
+
 Status: **Live on Cloudflare; automatic deployment verified.** The normal `https://cms.coze.care` address serves Worker `coze-cms`, using the existing Supabase database and credentials. Hosted build `07ca7d62-6a88-43d7-964a-e5b4d3a8fc21` succeeded at 2026-09-29 06:54:42 UTC (15:54 KST), commit `e4c66053aa96851fe87d54dda33a60ecbc03897e`, version `ec3074c9-30ad-4bd9-8c73-59cf1d9cbf17`. End-to-end build/deploy/cache upload: 152 seconds, an observed result rather than a future guarantee. The owner confirmed existing itinerary text and photos load. At 2026-09-29 07:00:46 UTC (16:00 KST), the CMS domain association and Git repository link were removed from the Vercel project. The old deployment remains READY for rollback; production traffic and automatic builds use Cloudflare.
 
 ## Scope and source

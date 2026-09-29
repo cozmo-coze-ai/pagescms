@@ -48,6 +48,10 @@ Both deployments watch only `main` of `cozmo-coze-ai/pagescms`:
 
 The root CMS excludes this independent project from Next TypeScript and ESLint. The connector owns its pinned dependencies and checks. Neither build runs production migrations. Editor build variables need no business credentials; its existing runtime secrets remain on the Worker. Changes to the public homepage still use the separate `coze_client/main` build, and itinerary saves still use the existing CMS publication queue.
 
+Verified Cloudflare trigger configuration: editor `37bfdd51-f27b-45aa-9f10-144a0e5bbc0f` (Worker tag `549ccd435d22415ca12b11105249d77b`), CMS `6f7f29ae-8a3c-4c7b-9d1b-20f31b24e8c3`. The existing Git connection and build token are reused. The CMS build command, deploy command, branch filters and runtime bindings were preserved; only editor paths were excluded from its watch list. The editor's homepage preview asset hash is unchanged, preserving the existing homepage preview trigger.
+
+Integration checks passed: 27 editor tests, editor types and Wrangler dry run, local OAuth/Workerd regression, both preview widgets at 320/390/768/1024/1440px, 17 CMS tests, CMS TypeScript/lint (nine existing warnings) and a clean OpenNext production build. The first local CMS build lacked the public `BASE_URL`; rerunning with the same three public build variables as Cloudflare passed. No runtime secrets were added to build variables. A staged-source scan found no protected credential values.
+
 After deployment, verify CMS sign-in/admin connection, connector OAuth and tools, private mobile previews, and the public itinerary revision manifest. A healthy Worker is not proof that ChatGPT refreshed its cached tools or that workspace sharing is enabled.
 
 ## Source backups
