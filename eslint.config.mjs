@@ -1,7 +1,7 @@
 import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 
 const config = [
-  { ignores: [".open-next/**", ".wrangler/**"] },
+  { ignores: [".open-next/**", ".wrangler/**", "chatgpt-editor/**"] },
   ...nextCoreWebVitals,
   {
     rules: {

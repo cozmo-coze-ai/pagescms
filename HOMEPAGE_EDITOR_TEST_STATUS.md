@@ -1,5 +1,7 @@
 # Homepage Editor client test
 
+> Historical report. For the deployed Cloudflare CMS and combined homepage/itinerary ChatGPT editor, use [the current handoff](docs/CHATGPT_EDITOR_HANDOFF.md). This earlier report describes the superseded GPT Actions setup.
+
 Checked 2026-09-28 (KST). The local implementation now passes its build and
 guard tests. **The deployed services are not ready for an authenticated client
 test yet.**

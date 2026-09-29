@@ -1,0 +1,46 @@
+// Destructive fixture setup is restricted to this disposable loopback DB.
+import pg from 'pg';
+import assert from 'node:assert/strict';
+import { ItineraryDatabase } from '../src/itinerary-db.ts';
+import { contentRevision } from '../src/itinerary-model.ts';
+const connectionString=process.env.CMS_TEST_DATABASE_URL;
+if(!connectionString)throw Error('Set CMS_TEST_DATABASE_URL to the disposable local test database.');
+const url=new URL(connectionString);
+if(!['localhost','127.0.0.1'].includes(url.hostname)||url.pathname!=='/coze_itinerary_test'||url.port!=='55441')throw Error('Refusing a non-test database.');
+const a=new pg.Client({connectionString}),b=new pg.Client({connectionString});await a.connect();await b.connect();
+try{
+ await a.query(`DROP TABLE IF EXISTS cms_proposal_version,cms_proposal,cms_itinerary,cms_deploy_trigger,"user" CASCADE;
+ CREATE TABLE "user"(id text PRIMARY KEY,role text NOT NULL);
+ INSERT INTO "user" VALUES('alice-db','editor'),('viewer-db','viewer');
+ CREATE TABLE cms_itinerary(slug text PRIMARY KEY,title text NOT NULL,category text NOT NULL,tag text,tag_color text,cover_path text,published boolean NOT NULL,body text NOT NULL,updated_at timestamp NOT NULL DEFAULT now(),updated_by text REFERENCES "user"(id));
+ CREATE TABLE cms_proposal(id text PRIMARY KEY,kind text NOT NULL,target text,base_updated_at timestamp,status text NOT NULL,published_at timestamp,published_by text REFERENCES "user"(id));
+ CREATE TABLE cms_proposal_version(id serial PRIMARY KEY,proposal_id text REFERENCES cms_proposal(id),version integer NOT NULL,content jsonb NOT NULL,rationale text NOT NULL,author text NOT NULL,UNIQUE(proposal_id,version));
+ CREATE TABLE cms_deploy_trigger(id integer PRIMARY KEY,triggered_at timestamp NOT NULL,dirty_at timestamp NOT NULL);
+ INSERT INTO cms_itinerary(slug,title,category,published,body) VALUES('seoul-tour','Seoul tour','tour',true,'## Original');`);
+ const env={TEAM_MEMBERS_JSON:JSON.stringify([{id:'alice',name:'Alice',enabled:true},{id:'viewer',name:'Viewer',enabled:true}]),ITINERARY_EDITORS_JSON:JSON.stringify({alice:'alice-db',viewer:'viewer-db'})};
+ const dbA=new ItineraryDatabase(env,a),dbB=new ItineraryDatabase(env,b);
+ const before=await dbA.read('alice','seoul-tour');
+ const first=crypto.randomUUID(),second=crypto.randomUUID();
+ const results=await Promise.allSettled([dbA.publish('alice',first,before,{...before.content,title:'First'},'First update'),dbB.publish('alice',second,before,{...before.content,title:'Second'},'Second update')]);
+ assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+ assert.equal(results.filter(r=>r.status==='rejected'&&r.reason.status===409).length,1);
+ assert.equal((await a.query('SELECT count(*)::int AS n FROM cms_proposal')).rows[0].n,1);
+ assert.equal((await a.query('SELECT count(*)::int AS n FROM cms_proposal_version')).rows[0].n,2);
+ assert.equal((await a.query('SELECT dirty_at>triggered_at AS dirty FROM cms_deploy_trigger')).rows[0].dirty,true);
+ const winner=results[0].status==='fulfilled'?first:second;
+ await dbA.publish('alice',winner,before,{...before.content,title:'Ignored retry'},'Retry');
+ assert.equal((await a.query('SELECT count(*)::int AS n FROM cms_proposal')).rows[0].n,1);
+ const fresh=await dbA.read('alice','seoul-tour');
+ await assert.rejects(dbA.publish('viewer',crypto.randomUUID(),fresh,{...fresh.content,title:'Viewer cannot write'},'No'),/read-only/);
+ assert.equal((await dbA.list('viewer','',0)).items.length,1);
+ assert.equal((await dbA.list('viewer',"%' OR 1=1 --",0)).items.length,0);
+ const collision=crypto.randomUUID();await a.query("INSERT INTO cms_proposal(id,kind,status) VALUES($1,'itinerary','draft')",[collision]);
+ await assert.rejects(dbA.publish('alice',collision,fresh,{...fresh.content,title:'Must roll back'},'Failure'));
+ assert.equal((await dbA.read('alice','seoul-tour')).revision,fresh.revision);
+ await a.query("UPDATE cms_itinerary SET updated_at=updated_at+interval '1 second' WHERE slug='seoul-tour'");
+ await assert.rejects(dbA.publish('alice',crypto.randomUUID(),fresh,{...fresh.content,title:'Stale timestamp'},'Failure'),/changed/);
+ const current=await dbA.read('alice','seoul-tour');assert.equal(await contentRevision(current.content),current.revision);
+ await a.query("UPDATE \"user\" SET role='viewer' WHERE id='alice-db'");
+ await assert.rejects(dbA.publish('alice',crypto.randomUUID(),current,{...current.content,title:'Revoked'},'No'),/read-only/);
+ console.log('PASS: PostgreSQL concurrent edits, atomic content/audit/deploy commit, retry idempotency, rollback, stale timestamps, role revocation, viewer reads and SQL injection resistance. Production database untouched.');
+}finally{await a.end();await b.end();}

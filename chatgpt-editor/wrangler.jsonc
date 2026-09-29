@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "coze-homepage-editor",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-24",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "workers_dev": true,
+  "vars": {
+    "PUBLIC_ORIGIN": "https://coze-homepage-editor.cozmo-ca1.workers.dev",
+    "PREVIEW_WORKER_TAG": "7ecae6f8d2294e01bc5c02dde8c7c1b7",
+    "PREVIEW_HOST_SUFFIX": "cozmo-ca1.workers.dev",
+    "PRODUCTION_WORKER_TAG": "de578179b7c44fb1b9b7f1c02a4a2a3f",
+    "CF_ACCOUNT_ID": "ca1b8e64b194b4a1f57d18d3b85c8fd5",
+    "PUBLIC_BUILD_TRIGGER_ID": "d9c93d2e-9d20-47b1-84ab-e7f53d55ae48"
+  },
+  // Preserve existing OAuth state; itinerary tools use the restricted CMS login.
+  "kv_namespaces": [{"binding":"OAUTH_KV","id":"10f6d28063624235a4b76e34ce70554a"}],
+  "hyperdrive": [{"binding":"CMS_DATABASE","id":"7c1dba6c67504c1cadba6c0c8ed40458","localConnectionString":"postgresql://test:test@127.0.0.1:55441/coze_itinerary_test"}],
+  "durable_objects": {"bindings":[{"name":"EDITOR","class_name":"EditorStore"}]},
+  "migrations": [{"tag":"v1","new_sqlite_classes":["EditorStore"]}]
+}

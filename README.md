@@ -1,5 +1,7 @@
 # Coze CMS
 
+**Current hosting:** Cloudflare for both the CMS and ChatGPT homepage/itinerary editor. The CMS lives at the repository root; the independent editor Worker and plugin live in [`chatgpt-editor/`](chatgpt-editor/). Both deploy from `main` using separate Cloudflare builds. Read the [editor connection and deployment handoff](docs/CHATGPT_EDITOR_HANDOFF.md) for current status and team activation.
+
 The content editor for [coze.care](https://coze.care), running at
 [cms.coze.care](https://cms.coze.care). Started as a fork of
 [Pages CMS](https://pagescms.org) but now runs its own custom system:

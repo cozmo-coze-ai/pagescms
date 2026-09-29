@@ -1,0 +1,4 @@
+interface:
+  default_prompt: Make the homepage hero more compact on mobile.
+  display_name: COZE Homepage & Itinerary Editor
+  short_description: Preview and publish homepage and itinerary edits

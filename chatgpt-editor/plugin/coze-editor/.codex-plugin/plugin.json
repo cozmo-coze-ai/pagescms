@@ -1,0 +1,28 @@
+{
+  "apps": "./.app.json",
+  "interface": {
+    "capabilities": [
+      "skills"
+    ],
+    "category": "Other",
+    "composerIcon": "./assets/gpt-icon.png",
+    "defaultPrompt": [
+      "Make the homepage hero more compact on mobile.",
+      "Change this homepage copy in all four languages.",
+      "Replace a supported homepage photo with my attachment."
+    ],
+    "developerName": "Nishat",
+    "displayName": "COZE Homepage & Itinerary Editor",
+    "logo": "./assets/gpt-icon.png",
+    "longDescription": "Edit the homepage layout, four-language copy and supported photos, or existing CMS itinerary text and photos. See a preview in chat, then confirm the exact change before publishing. Uses the same connected COZE app.",
+    "shortDescription": "Edit COZE homepage design and itinerary content, preview, then confirm publishing."
+  },
+  "name": "gpt-96a7a163626e05f4185de181791ba82a",
+  "version": "0.4.0",
+  "description": "Edit COZE homepage design and itinerary content, preview, then confirm publishing.",
+  "author": {
+    "name": "Nishat"
+  },
+  "keywords": [],
+  "skills": "./skills"
+}
