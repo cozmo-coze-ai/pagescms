@@ -1,5 +1,7 @@
 # COZE Homepage & Itinerary Editor
 
+**Using the editor requires no GitHub account.** The founder and team use [this short guide](docs/FOUNDER_EDITOR_QUICK_START.md). Marketplace import below is a one-time administrator task. A plugin link must be shared with the recipient and its COZE app enabled before the recipient can use it; a private owner's link alone does not grant access.
+
 For company installation and centralized updates, use [the GitHub marketplace setup](docs/CHATGPT_PLUGIN_AUTO_UPDATES.md). Import `https://github.com/cozmo-coze-ai/pagescms`, leave Path empty, and select branch `main`. Workspace import/connection must be completed and verified before claiming company availability. The personal connection below remains available during setup.
 
 Use the existing [COZE app](https://chatgpt.com/plugins/plugin_asdk_app_6abb1da4205c81919a0468aee3675954) and [workflow plugin](https://chatgpt.com/plugins/plugin_ce7a0f7893008191a2b49a669dea575d). They work together; do not create another same-name app.

@@ -7,12 +7,14 @@ import { browserConsent } from '../scripts/browser-consent.mjs';
 const origin = 'https://editor.example.test';
 const key = randomBytes(32).toString('base64url');
 const hash = value => createHash('sha256').update(value).digest('hex');
+const supplemental=process.env.COZE_TEST_ADDITIONAL_MEMBER==='1';
+const alice={id:'alice',name:'Alice',enabled:true,keyHash:hash(key)};
 const testDatabase=process.env.CMS_TEST_DATABASE_URL;
 if(testDatabase){const u=new URL(testDatabase);if(u.hostname!=='127.0.0.1'||u.port!=='55441'||u.pathname!=='/coze_itinerary_test')throw Error('Refusing a non-test database');const {Client}=await import('pg');const sql=new Client({connectionString:testDatabase});await sql.connect();await sql.query('UPDATE public."user" SET role=$1 WHERE id=$2',['editor','alice-db']);await sql.end();}
 const mf = new Miniflare(convertV4MiniflareOptions({ name: 'test-editor', modules: true, scriptPath: 'dist/index.js', compatibilityDate: '2026-09-24', compatibilityFlags: ['nodejs_compat', 'global_fetch_strictly_public'],
   kvNamespaces: ['OAUTH_KV'], durableObjects: { EDITOR: { className: 'EditorStore', useSQLite: true } },
   ...(testDatabase?{hyperdrives:{CMS_DATABASE:testDatabase}}:{}),
-  bindings: { PUBLIC_ORIGIN: origin, GITHUB_TOKEN: 'synthetic-github-token', PREVIEW_HOST_SUFFIX: 'example.workers.dev', TEAM_MEMBERS_JSON: JSON.stringify([{ id: 'alice', name: 'Alice', enabled: true, keyHash: hash(key) }]),ITINERARY_EDITORS_JSON:JSON.stringify({alice:'alice-db'}) },
+  bindings: { PUBLIC_ORIGIN: origin, GITHUB_TOKEN: 'synthetic-github-token', PREVIEW_HOST_SUFFIX: 'example.workers.dev', TEAM_MEMBERS_JSON: JSON.stringify(supplemental?[{id:'existing',name:'Existing',enabled:true,keyHash:hash('existing-synthetic-key')}]:[alice]),ITINERARY_EDITORS_JSON:JSON.stringify(supplemental?{}:{alice:'alice-db'}),ADDITIONAL_EDITORS_JSON:JSON.stringify(supplemental?[{...alice,cmsUserId:'alice-db'}]:[]) },
   outboundService: request => {
     const url = new URL(request.url);
     if(url.hostname==='www.coze.care')return new Response('Not published',{status:404});

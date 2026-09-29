@@ -8,7 +8,7 @@
 
 The local `pagescms` checkout was synchronized with production main after all 92 mixed prototype files were backed up and verified. That obsolete prototype is not required by either live Worker. The original snapshot remains on `backup/cms-editor-work-20260929`, in Git stash, and in the owner's protected local backup folder.
 
-- Workflow plugin: [COZE Homepage & Itinerary Editor](https://chatgpt.com/plugins/plugin_ce7a0f7893008191a2b49a669dea575d), version **0.4.0**, saved and read back with all seven release files verified.
+- Workflow plugin: [COZE Homepage & Itinerary Editor](https://chatgpt.com/plugins/plugin_ce7a0f7893008191a2b49a669dea575d), version **0.4.1**, saved and read back. Founder/team instructions now keep GitHub and deployment setup with the administrator. App, assets, identity and private audience are preserved.
 - Required connected app: `asdk_app_6abb1da4205c81919a0468aee3675954`.
 - OAuth MCP endpoint: `https://coze-homepage-editor.cozmo-ca1.workers.dev/mcp`.
 - The same-name workflow plugin and connected app are both needed.
@@ -18,6 +18,40 @@ The same connection now supports homepage design and existing CMS itinerary cont
 **ChatGPT activation pending:** open [the existing app](https://chatgpt.com/plugins/plugin_asdk_app_6abb1da4205c81919a0468aee3675954), choose **Manage app → Refresh tools**, then reconnect if asked to approve `itineraries:read` / `itineraries:write`. The owner has located this menu; the latest metadata check still listed seven old homepage tools. Start a new chat after refreshing. Do not create another same-name app or bypass consent. A complete itinerary preview/publication through the real ChatGPT client is not yet verified.
 
 Workspace sharing previously returned `Workspace plugin sharing permission required`. Do not claim company-wide availability or retry sharing until the permission has changed. Each teammate needs a separate connection; do not share the owner's credentials.
+
+## Founder access
+
+The founder has requested both personal ChatGPT and the company workspace. The
+short user instructions are [here](FOUNDER_EDITOR_QUICK_START.md). Neither route
+requires the founder to own a GitHub account. The administrator performs any
+GitHub marketplace import; personal installation/sharing remains separate.
+
+`ADDITIONAL_EDITORS_JSON` adds independently revocable editor identities without
+replacing the original `TEAM_MEMBERS_JSON` or `ITINERARY_EDITORS_JSON` secrets.
+Each entry has `id`, `name`, `enabled`, SHA-256 `keyHash` and optional `cmsUserId`.
+Existing IDs/keys take precedence, even when disabled. Duplicate supplemental
+IDs/keys and malformed entries fail closed. Disabling a supplemental identity
+also rejects its existing OAuth sessions on subsequent tool calls.
+
+The founder's CMS mapping uses the account explicitly designated by the owner;
+its current role was verified with a read-only database query. No CMS user,
+password, role, database schema or public content was changed. The connection
+key is independent of that CMS password and the owner's connection key.
+
+Protected provisioning records and encrypted connection/configuration files are
+in `C:\Users\cozmo\.codex\credentials\coze-homepage-editor`. The local
+`copy-founder-connection-key.ps1` copies only this founder's key for private
+handoff. Do not print it or put it in repository docs. For future membership
+changes, reconcile the protected supplemental configuration before updating the
+secret; never replace it with a single-person list. Set `enabled:false` to revoke
+one supplemental member while preserving the others.
+
+Local verification: 31 tests, type checks, dry-run build, and both original and
+supplemental native-browser OAuth/runtime tests passed. Deployment and founder
+hosted checks must be recorded below before reporting the new access as live.
+ChatGPT currently reports the plugin as private and cannot publish it to the
+company from this session. A runtime identity is not proof of a ChatGPT invite,
+installation, app visibility or company marketplace import.
 
 ## Itineraries
 

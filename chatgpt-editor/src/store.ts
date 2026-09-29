@@ -67,7 +67,7 @@ export class EditorStore extends DurableObject<Env> {
     } catch (error) {
       const diagnostic = !(error instanceof PublicError) && error instanceof Error ? {
         name: error.name,
-        message: [this.env.GITHUB_TOKEN, this.env.CF_API_TOKEN, this.env.TEAM_MEMBERS_JSON, this.env.SUPABASE_SERVICE_ROLE_KEY, this.env.CMS_DATABASE?.connectionString].filter((secret): secret is string => Boolean(secret))
+        message: [this.env.GITHUB_TOKEN, this.env.CF_API_TOKEN, this.env.TEAM_MEMBERS_JSON, this.env.ADDITIONAL_EDITORS_JSON, this.env.ITINERARY_EDITORS_JSON, this.env.SUPABASE_SERVICE_ROLE_KEY, this.env.CMS_DATABASE?.connectionString].filter((secret): secret is string => Boolean(secret))
           .reduce((message, secret) => message.split(secret!).join("[redacted]"), error.message).slice(0, 300),
         frames: error.stack?.split("\n").slice(1, 5),
       } : undefined;

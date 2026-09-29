@@ -7,6 +7,11 @@ credentials, grant CMS access or publish website content.
 
 ## One-time company setup
 
+**Administrator only:** the person completing the import authorizes their GitHub
+connection once. The founder and team members who use the plugin do not need
+GitHub accounts or repository access. Give them the verified shared plugin link
+and [the short user guide](FOUNDER_EDITOR_QUICK_START.md), not this setup guide.
+
 In **COZE HOSPITALITY 3.0**, open **Admin > Plugins > Add > Import marketplace**.
 The owner confirmed this option is available on 2026-09-29. Enter:
 
