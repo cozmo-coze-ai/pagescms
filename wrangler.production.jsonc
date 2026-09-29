@@ -8,7 +8,13 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "coze-cms" }],
-  "hyperdrive": [{ "binding": "CMS_DATABASE", "id": "7c1dba6c67504c1cadba6c0c8ed40458" }],
+  "hyperdrive": [{
+    "binding": "CMS_DATABASE",
+    "id": "7c1dba6c67504c1cadba6c0c8ed40458",
+    // OpenNext's deploy-time platform proxy requires a local URL even though
+    // it does not query the database. This synthetic URL is ignored in Workers.
+    "localConnectionString": "postgresql://build:unused@127.0.0.1:9/build_only"
+  }],
   "workers_dev": false,
   "routes": [{ "pattern": "cms.coze.care", "custom_domain": true, "zone_id": "f12dac3215443e33a57e67e4db3de323" }],
   "preview_urls": false,
