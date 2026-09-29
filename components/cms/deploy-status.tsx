@@ -1,21 +1,6 @@
 "use client";
 
-// Live view of the coze.care publish pipeline, driven by
-// /api/cms/deploy-status:
-//
-//   queued    a save is waiting out the debounce for its build to fire,
-//             or the hook fired but Vercel hasn't started the build yet
-//   building  Vercel is actually building the site (real readyState,
-//             polled live from the Vercel API — not a timer estimate)
-//   idle      the build Vercel ran for this trigger is READY
-//   error     that build failed (readyState ERROR/CANCELED)
-//
-// Falls back to a fixed-time estimate if VERCEL_API_TOKEN isn't configured
-// server-side (see lib/vercel-deploy-status.ts).
-//
-// Polls every 15s; anything that saves content can dispatch
-// DEPLOY_STATUS_REFRESH_EVENT to update it instantly. Two variants:
-// "card" (dashboard box) and "compact" (editor toolbar strip).
+// Read actual Cloudflare build status. Elapsed time never implies success.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Globe } from "lucide-react";
@@ -23,8 +8,6 @@ import { cn } from "@/lib/utils";
 
 export const DEPLOY_STATUS_REFRESH_EVENT = "cms:deploy-status-refresh";
 
-// Only used as a fallback when the real Vercel deployment state isn't available.
-const BUILD_ESTIMATE_SECONDS = 180;
 const POLL_MS = 15_000;
 
 type DeploymentState = "QUEUED" | "BUILDING" | "READY" | "ERROR" | "CANCELED" | null;
@@ -36,7 +19,7 @@ type Snapshot = {
   deployment: { state: DeploymentState; createdAt: string } | null;
 };
 
-type Phase = "loading" | "queued" | "building" | "idle" | "error";
+type Phase = "loading" | "queued" | "building" | "idle" | "error" | "unknown";
 
 const relativeLabel = (thenMs: number, nowMs: number) => {
   const minutes = Math.floor((nowMs - thenMs) / 60_000);
@@ -55,6 +38,7 @@ export function DeployStatus({
   className?: string;
 }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
   // Server-clock offset so the countdown isn't skewed by the local clock.
   const clockOffsetRef = useRef(0);
   // Wall clock lives in state (set from effects only — render stays pure).
@@ -64,11 +48,12 @@ export function DeployStatus({
     try {
       const response = await fetch("/api/cms/deploy-status");
       const json = await response.json();
-      if (json.status !== "success") return;
+      if (!response.ok || json.status !== "success") throw new Error("Status unavailable");
       clockOffsetRef.current = Date.now() - new Date(json.data.serverNow).getTime();
       setSnapshot(json.data);
+      setUnavailable(false);
     } catch {
-      // Transient network error — keep showing the last snapshot.
+      setUnavailable(true);
     }
   }, []);
 
@@ -90,14 +75,10 @@ export function DeployStatus({
   const triggeredAtMs = snapshot?.triggeredAt ? new Date(snapshot.triggeredAt).getTime() : 0;
   // triggered_at defaults to epoch 0 before the first ever build.
   const hasBuilt = triggeredAtMs > 86_400_000;
-  const buildElapsedSeconds = hasBuilt ? (serverNow - triggeredAtMs) / 1000 : Infinity;
-
   const deploymentState = snapshot?.deployment?.state ?? null;
-  // deploymentState is null when VERCEL_API_TOKEN isn't configured — fall
-  // back to the old timer-based estimate rather than showing nothing.
   const usingRealStatus = deploymentState !== null;
 
-  const phase: Phase = !snapshot || nowMs === 0
+  const phase: Phase = unavailable ? "unknown" : !snapshot || nowMs === 0
     ? "loading"
     : dirtyAtMs > triggeredAtMs
       ? "queued"
@@ -106,25 +87,22 @@ export function DeployStatus({
           ? "idle"
           : deploymentState === "ERROR" || deploymentState === "CANCELED"
             ? "error"
-            : "building"
-        : buildElapsedSeconds < BUILD_ESTIMATE_SECONDS
-          ? "building"
-          : "idle";
-
-  const buildProgress = Math.min(buildElapsedSeconds / BUILD_ESTIMATE_SECONDS, 1);
-  const remainingSeconds = Math.max(0, Math.round(BUILD_ESTIMATE_SECONDS - buildElapsedSeconds));
+            : deploymentState === "QUEUED" ? "queued" : "building"
+        : hasBuilt || dirtyAtMs > 0 ? "unknown" : "idle";
 
   const label =
     phase === "loading" ? "Checking…"
     : phase === "queued" ? "Update queued"
     : phase === "building" ? "Publishing to coze.care"
     : phase === "error" ? "Publish failed"
-    : "Site up to date";
+    : phase === "unknown" ? "Publish status unavailable"
+    : hasBuilt ? "Site up to date" : "Ready to edit";
 
   const timeText =
     phase === "queued" ? "build starts shortly"
-    : phase === "building" ? (usingRealStatus ? "Vercel is building coze.care" : `≈ ${remainingSeconds >= 60 ? `${Math.ceil(remainingSeconds / 60)}m` : `${remainingSeconds}s`} left`)
-    : phase === "error" ? "check the coze_client Vercel deployment"
+    : phase === "building" ? "Updating the website"
+    : phase === "error" ? "Please check the website build"
+    : phase === "unknown" ? "Publication could not be confirmed"
     : phase === "idle" && hasBuilt ? `published ${relativeLabel(triggeredAtMs, serverNow)}`
     : "";
 
@@ -140,10 +118,7 @@ export function DeployStatus({
       {phase === "queued" ? (
         <div className="studio-indeterminate h-full w-1/3 rounded-full bg-[var(--studio-clay)]" />
       ) : phase === "building" ? (
-        <div
-          className="h-full rounded-full bg-primary transition-[width] duration-1000 ease-linear"
-          style={{ width: `${Math.max(4, buildProgress * 100)}%` }}
-        />
+        <div className="studio-indeterminate h-full w-1/3 rounded-full bg-primary" />
       ) : (
         <div
           className={cn(
@@ -157,9 +132,9 @@ export function DeployStatus({
 
   if (variant === "compact") {
     return (
-      <div className={cn("flex items-center gap-2", className)} title={timeText || label}>
+      <div className={cn("flex flex-wrap items-center gap-2", className)} title={timeText || label}>
         <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", dotClass)} />
-        <span className="whitespace-nowrap text-xs text-muted-foreground">{label}</span>
+        <span className="text-xs text-muted-foreground">{label}</span>
         {(phase === "queued" || phase === "building") && (
           <span className="w-16">{bar}</span>
         )}
@@ -173,7 +148,7 @@ export function DeployStatus({
         <Globe className="h-3.5 w-3.5" />
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em]">Site status</h2>
       </header>
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
         <p className="flex items-center gap-2 text-[13px] font-medium leading-tight">
           <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", dotClass)} />
           {label}

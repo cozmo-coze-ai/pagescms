@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "coze-cms-preview",
+  "account_id": "ca1b8e64b194b4a1f57d18d3b85c8fd5",
+  "main": "cloudflare/worker.ts",
+  "keep_names": false,
+  "compatibility_date": "2026-09-29",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "coze-cms-preview" }],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "vars": {
+    "BASE_URL": "https://coze-cms-preview.cozmo-ca1.workers.dev",
+    "CMS_RUNTIME": "cloudflare",
+    "SUPABASE_URL": "https://ihitnwzljfldctswwrsv.supabase.co",
+    "CMS_READ_ONLY": "true",
+    "COZE_HOMEPAGE_MCP_ENABLED": "false",
+    "NEXT_PUBLIC_COZE_CLIENT_SITE_URL": "https://www.coze.care"
+  }
+}

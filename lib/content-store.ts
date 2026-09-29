@@ -30,11 +30,12 @@ const config = { object: cmsConfig };
 // The debounce alone has a race: a save landing while an in-flight build is
 // already fetching content gets suppressed and never re-fires, leaving the
 // site permanently stale (observed 2026-07-15: a 01:17:37 save lost to the
-// build triggered at 01:17:31). So suppressed saves also schedule a
-// trailing re-fire via `after()` — once the window expires, the first
-// waiter to win the atomic row update fires one catch-up build that fetches
-// current content; the rest lose the update and do nothing.
+// build triggered at 01:17:31). Cloudflare's scheduled sweep retries dirty
+// saves after the window expires. Other runtimes also schedule an after()
+// retry. An atomic update elects one winner across concurrent attempts.
 const DEPLOY_TRIGGER_DEBOUNCE_SECONDS = 60;
+const getDeployHook = () => process.env.COZE_CLIENT_CLOUDFLARE_DEPLOY_HOOK_URL ??
+  (process.env.CMS_RUNTIME === "cloudflare" ? undefined : process.env.COZE_CLIENT_DEPLOY_HOOK_URL);
 
 // Durably record "content changed". Runs on every mutation before any
 // trigger attempt, so no save can be forgotten: whether a build fires now
@@ -54,7 +55,7 @@ const markContentDirty = async () => {
 // the rest do nothing. A failed HTTP request releases its claim, so the next
 // attempt can retry instead of permanently treating the content as deployed.
 const attemptDeployTrigger = async (hookUrl: string): Promise<boolean> => {
-  const won = await db.execute(sql`
+  const { rows: won } = await db.execute(sql`
     update ${cmsDeployTriggerTable}
     set triggered_at = now()
     where ${cmsDeployTriggerTable.id} = 1
@@ -65,7 +66,7 @@ const attemptDeployTrigger = async (hookUrl: string): Promise<boolean> => {
   if (won.length === 0) return false;
   const claimedAt = (won[0] as { triggered_at: Date }).triggered_at;
   try {
-    const response = await fetch(hookUrl, { method: "POST" });
+    const response = await fetch(hookUrl, { method: "POST", signal: AbortSignal.timeout(15_000) });
     if (!response.ok) throw new Error(`Cloudflare deploy hook returned ${response.status}`);
     return true;
   } catch (error) {
@@ -87,7 +88,7 @@ const attemptDeployTrigger = async (hookUrl: string): Promise<boolean> => {
 
 // Used by /api/cron/deploy-sweep as a manual backstop for a dirty save.
 const sweepDeployTrigger = async (): Promise<"fired" | "clean" | "unconfigured"> => {
-  const hookUrl = process.env.COZE_CLIENT_CLOUDFLARE_DEPLOY_HOOK_URL ?? process.env.COZE_CLIENT_DEPLOY_HOOK_URL;
+  const hookUrl = getDeployHook();
   if (!hookUrl) return "unconfigured";
   return (await attemptDeployTrigger(hookUrl)) ? "fired" : "clean";
 };
@@ -97,14 +98,15 @@ const sweepDeployTrigger = async (): Promise<"fired" | "clean" | "unconfigured">
 // see — e.g. saving an itinerary that was a draft and stays a draft.
 const triggerCozeClientDeploy = async (affectsSite: boolean = true) => {
   if (!affectsSite) return;
-  const hookUrl = process.env.COZE_CLIENT_CLOUDFLARE_DEPLOY_HOOK_URL ?? process.env.COZE_CLIENT_DEPLOY_HOOK_URL;
+  if (process.env.CMS_READ_ONLY === "true") return;
+  const hookUrl = getDeployHook();
   if (!hookUrl) return;
 
   try {
     await markContentDirty();
 
     const fired = await attemptDeployTrigger(hookUrl);
-    if (!fired) {
+    if (!fired && process.env.CMS_RUNTIME !== "cloudflare") {
       // Suppressed by the debounce: re-attempt once the window expires
       // (post-response; Next.js keeps the function alive for `after`
       // callbacks). Best-effort fast path; the manual sweep can also retry.

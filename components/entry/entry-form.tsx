@@ -968,7 +968,7 @@ const SingleField = ({
         render={({ field: rhfManagedFieldProps }) => (
           <FormItem>
             {shouldShowFieldMeta && (
-              <div className="flex items-center justify-between min-h-6 gap-x-2">
+              <div className="flex flex-wrap items-center justify-between min-h-6 gap-x-2 gap-y-2">
                 <div className="flex items-center gap-x-2 min-w-0">
                   {field.label !== false && (
                     <FormLabel>{field.label || field.name}</FormLabel>

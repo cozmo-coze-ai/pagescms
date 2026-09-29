@@ -12,6 +12,9 @@ function isAllowedOrigin(originHeader: string, hostHeader: string): boolean {
 
 export function proxy(request: NextRequest) {
 	const pathname = request.nextUrl.pathname;
+	if (process.env.CMS_READ_ONLY === "true" && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+		return NextResponse.json({ status: "error", message: "This preview is read-only." }, { status: 403 });
+	}
 	const isStaticAsset =
 		pathname.startsWith("/_next/") ||
 		pathname === "/favicon.ico" ||
