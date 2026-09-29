@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { readJson, requireGptAction, resolveGptActor } from "@/lib/gpt-action-auth";
 import { createHttpError, toErrorResponse } from "@/lib/api-error";
 import { undoHomepageChange } from "@/lib/homepage-changes";

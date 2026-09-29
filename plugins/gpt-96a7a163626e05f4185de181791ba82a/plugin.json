@@ -1,0 +1,27 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "gpt-96a7a163626e05f4185de181791ba82a",
+  "version": "0.3.0",
+  "description": "Edit the COZE homepage through its connected app, preview the design, then publish with the requester's confirmation.",
+  "author": { "name": "Nishat" },
+  "extensions": {
+    "com.openai": {
+      "apps": "./.app.json",
+      "interface": {
+        "displayName": "COZE Homepage Editor",
+        "shortDescription": "Edit the COZE homepage with confirmation before publishing",
+        "longDescription": "Use your personal COZE connection to edit only the homepage, view an actual mobile and desktop preview, then confirm publishing in chat. The requester approves their own change; no separate reviewer is required.",
+        "developerName": "Nishat",
+        "category": "Productivity",
+        "capabilities": ["Interactive"],
+        "composerIcon": "./assets/coze-icon.png",
+        "logo": "./assets/coze-icon.png",
+        "defaultPrompt": [
+          "Make the homepage hero more compact on mobile.",
+          "Change this homepage copy in all four languages.",
+          "Replace a supported homepage photo with my attachment."
+        ]
+      }
+    }
+  }
+}

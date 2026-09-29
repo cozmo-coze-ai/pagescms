@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { Field } from "@/types/field";
 import { EditComponent } from "./edit-component";
 import { ViewComponent } from "./view-component";

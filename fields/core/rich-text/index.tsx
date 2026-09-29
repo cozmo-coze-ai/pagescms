@@ -1,7 +1,7 @@
 import { Field } from "@/types/field";
 import { EditComponent } from "./edit-component";
 import { ViewComponent } from "./view-component";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 const schema = (field: Field, configObject?: Record<string, any>) => {
   let zodSchema = z.string();

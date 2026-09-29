@@ -1,7 +1,7 @@
 import "server-only";
 
 import { desc, eq } from "drizzle-orm";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { db } from "@/db";
 import { cmsProposalTable, cmsProposalVersionTable } from "@/db/schema";
 import { createHttpError } from "@/lib/api-error";

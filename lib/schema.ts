@@ -4,7 +4,7 @@
 
 import slugify from "slugify";
 import { defaultValues, schemas } from "@/fields/registry";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { Field } from "@/types/field";
 import { format } from "date-fns";
 

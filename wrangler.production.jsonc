@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "coze-cms",
+  "account_id": "ca1b8e64b194b4a1f57d18d3b85c8fd5",
+  "main": "cloudflare/worker.ts",
+  "keep_names": false,
+  "compatibility_date": "2026-09-29",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "coze-cms" }],
+  "hyperdrive": [{
+    "binding": "CMS_DATABASE",
+    "id": "7c1dba6c67504c1cadba6c0c8ed40458",
+    // OpenNext's deploy-time platform proxy requires a local URL even though
+    // it does not query the database. This synthetic URL is ignored in Workers.
+    "localConnectionString": "postgresql://build:unused@127.0.0.1:9/build_only"
+  }],
+  "workers_dev": false,
+  "routes": [{ "pattern": "cms.coze.care", "custom_domain": true, "zone_id": "f12dac3215443e33a57e67e4db3de323" }],
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "triggers": { "crons": ["* * * * *"] },
+  "vars": {
+    "BASE_URL": "https://cms.coze.care",
+    "CMS_RUNTIME": "cloudflare",
+    "SUPABASE_URL": "https://ihitnwzljfldctswwrsv.supabase.co",
+    "EMAIL_PROVIDER": "resend",
+    "EMAIL_FROM": "Coze CMS <no-reply@coze.care>",
+    "CMS_READ_ONLY": "false",
+    "COZE_HOMEPAGE_MCP_ENABLED": "false",
+    "NEXT_PUBLIC_COZE_CLIENT_SITE_URL": "https://www.coze.care",
+    "CLOUDFLARE_ACCOUNT_ID": "ca1b8e64b194b4a1f57d18d3b85c8fd5",
+    "COZE_CLIENT_WORKER_TAG": "de578179b7c44fb1b9b7f1c02a4a2a3f",
+    "COZE_CLIENT_BUILD_TRIGGER_ID": "d9c93d2e-9d20-47b1-84ab-e7f53d55ae48"
+  }
+}

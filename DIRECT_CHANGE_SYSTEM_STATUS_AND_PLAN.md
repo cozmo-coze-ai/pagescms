@@ -1,6 +1,11 @@
 # COZE direct editing from ChatGPT — status and handoff
 
-Status: **implemented and locally verified; not set up for production** (2026-09-28).
+Current plugin/MCP status and activation: [HOMEPAGE_PLUGIN_SETUP.md](HOMEPAGE_PLUGIN_SETUP.md).
+Validation history: [HOMEPAGE_EDITOR_TEST_STATUS.md](HOMEPAGE_EDITOR_TEST_STATUS.md).
+Priority corrected 2026-09-29: homepage editing through an independent
+Cloudflare connection first; CMS migration and Supabase CRUD afterward.
+The report below records the earlier GPT Actions implementation; its setup
+status is superseded by those two reports.
 
 The goal is for a trusted founder or designer to ask a private ChatGPT to make
 an editorial change without asking a developer to edit and deploy it. This is

@@ -1,4 +1,4 @@
-import { z, ZodIssueCode } from "zod";
+import { z, ZodIssueCode } from "zod/v3";
 import { ViewComponent } from "./view-component";
 import { EditComponent } from "./edit-component";
 import { Field } from "@/types/field";

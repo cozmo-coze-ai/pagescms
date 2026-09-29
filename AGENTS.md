@@ -6,6 +6,9 @@ This is the internal Next.js CMS for COZE public content. Keep public content, a
 
 ## Working rules
 
+- For authorized Cloudflare work, read `docs/CLOUDFLARE_AGENT_ACCESS.md` for the protected local credential location and current build-repair handoff. Never store plaintext credentials in this repository or print them.
+- For authorized ChatGPT homepage GitHub work, read `docs/GITHUB_HOMEPAGE_AGENT_ACCESS.md` for the encrypted credential location and verified scope. Never copy its plaintext value into repository files or output.
+
 - Do not deploy, run production migrations, modify production records, or expose secrets without explicit authorization.
 - Preserve the existing authentication and authorization boundaries; hiding a control in the UI is not access control.
 - Use the existing package manager and scripts. Prefer small, typed changes over broad refactors.
@@ -15,6 +18,6 @@ This is the internal Next.js CMS for COZE public content. Keep public content, a
 ## Verification
 
 - Run `npm run lint` for UI or application changes.
-- Run `npm run build` for production-path changes. Be aware that the configured `postbuild` runs database migrations; do not run the build against production credentials or an unreviewed database target.
+- Run `npm run build:cloudflare` for hosting/runtime changes. Automatic postbuild migrations were removed; `npm run db:migrate` remains an explicit operation requiring an authorized target. Build in a clean checkout without production `.env` files: OpenNext can bundle loaded environment values. Read `docs/CMS_CLOUDFLARE_MIGRATION.md` for migration status and the remaining activation blockers.
 - Use synthetic content and protected environments for write-path testing.
 

@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { db } from "@/db";
 import { userTable } from "@/db/schema";
 import { createHttpError, toErrorResponse } from "@/lib/api-error";

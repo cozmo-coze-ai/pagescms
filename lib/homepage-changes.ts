@@ -5,7 +5,7 @@ import "server-only";
 // "homepage_design") so every change can be listed, tracked and undone.
 
 import { and, desc, eq, gte } from "drizzle-orm";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { db } from "@/db";
 import { cmsProposalTable, cmsProposalVersionTable } from "@/db/schema";
 import { createHttpError } from "@/lib/api-error";

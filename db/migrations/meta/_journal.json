@@ -162,6 +162,13 @@
       "when": 1790579679138,
       "tag": "0022_gpt_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790586261887,
+      "tag": "0023_homepage_plugin_oauth",
+      "breakpoints": true
     }
   ]
 }

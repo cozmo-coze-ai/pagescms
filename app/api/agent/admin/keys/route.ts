@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { createGptKey, listGptKeys, readJson, requireAdminPanel } from "@/lib/gpt-action-auth";
 import { createHttpError, toErrorResponse } from "@/lib/api-error";
 import { setupKit } from "@/lib/gpt-setup-kit";

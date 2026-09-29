@@ -838,7 +838,7 @@ const EditComponent = forwardRef(
     );
 
     const triggerClass = cn(
-      "relative inline-flex h-full items-center justify-center gap-1 whitespace-nowrap rounded-md border border-transparent px-2.5 text-[11px] font-medium text-muted-foreground transition-all",
+      "relative inline-flex h-full items-center justify-center gap-1 whitespace-nowrap rounded-md border border-transparent px-2 sm:px-2.5 text-[11px] font-medium text-muted-foreground transition-all",
       "hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring",
       "disabled:pointer-events-none disabled:opacity-50",
       "dark:hover:text-foreground",

@@ -1,5 +1,5 @@
 import { EditComponent } from "./edit-component";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { Field } from "@/types/field";
 
 const schema = (field: Field, configObject?: Record<string, any>) => {

@@ -3,7 +3,7 @@ import "server-only";
 // Request parsing shared by the homepage check (dry run) and apply routes, so
 // what the designer confirms is exactly what gets deployed.
 
-import { z } from "zod";
+import { z } from "zod/v3";
 import { createHttpError } from "@/lib/api-error";
 import { readJson } from "@/lib/gpt-action-auth";
 import { downloadChatGptImage, openaiFileRefSchema, textEditSchema, type NewImage } from "@/lib/homepage-changes";

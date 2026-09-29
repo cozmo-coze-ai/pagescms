@@ -1,5 +1,10 @@
 # COZE direct ChatGPT editing
 
+Current priority: an independent ChatGPT-to-homepage connection on Cloudflare.
+CMS migration comes later. See [HOMEPAGE_PLUGIN_SETUP.md](HOMEPAGE_PLUGIN_SETUP.md).
+This document describes the earlier CMS-hosted GPT Actions implementation;
+its CMS/Vercel setup steps are not prerequisites for the corrected homepage plan.
+
 Goal: owner/designer → private ChatGPT (Custom GPT Action) → scoped API on
 cms.coze.care → a versioned change → automatic Cloudflare deploy →
 www.coze.care. No developer relay and no separate approval: **the person in

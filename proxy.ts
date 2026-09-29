@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { isHomepageOAuthProtocolPath } from "@/lib/homepage-mcp-config";
 
 function isAllowedOrigin(originHeader: string, hostHeader: string): boolean {
 	try {
@@ -12,6 +13,9 @@ function isAllowedOrigin(originHeader: string, hostHeader: string): boolean {
 
 export function proxy(request: NextRequest) {
 	const pathname = request.nextUrl.pathname;
+	if (process.env.CMS_READ_ONLY === "true" && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+		return NextResponse.json({ status: "error", message: "This preview is read-only." }, { status: 403 });
+	}
 	const isStaticAsset =
 		pathname.startsWith("/_next/") ||
 		pathname === "/favicon.ico" ||
@@ -24,7 +28,7 @@ export function proxy(request: NextRequest) {
 	// GPT Actions use a dedicated bearer token, not browser cookies. Their
 	// server-to-server POST has no same-origin browser Origin header; each agent
 	// route authenticates the bearer token before reading or writing anything.
-	if (pathname.startsWith("/api/") && !pathname.startsWith("/api/agent/") && request.method !== "GET") {
+	if (pathname.startsWith("/api/") && !pathname.startsWith("/api/agent/") && !isHomepageOAuthProtocolPath(pathname) && request.method !== "GET") {
 		const originHeader = request.headers.get("Origin");
 		const hostHeader = request.headers.get("Host");
 		if (!originHeader || !hostHeader || !isAllowedOrigin(originHeader, hostHeader)) {

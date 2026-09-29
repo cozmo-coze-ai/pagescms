@@ -82,7 +82,7 @@ const createCollaboratorAccount = async (input: {
   try {
     const ctx = await auth.$context;
     const hashedPassword = await ctx.password.hash(password);
-    const created = await ctx.internalAdapter.createUser({ email, name });
+    const created = await ctx.internalAdapter.createUser({ email, name }, { method: "admin" });
     await ctx.internalAdapter.linkAccount({
       userId: created.id,
       providerId: "credential",

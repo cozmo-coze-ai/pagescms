@@ -1,5 +1,5 @@
 import { Field } from "@/types/field";
-import { z } from "zod";
+import { z } from "zod/v3";
 // Only the field types the cms-config schema actually uses are kept —
 // the rest of the upstream PagesCMS field library was removed.
 import * as booleanField from "@/fields/core/boolean";
