@@ -6,6 +6,8 @@ This is the internal Next.js CMS for COZE public content. Keep public content, a
 
 The production ChatGPT homepage and itinerary connector lives in `chatgpt-editor/` with its own dependencies, checks and Cloudflare Worker. Read `docs/CHATGPT_EDITOR_HANDOFF.md` for the shared deployment and connection state. Do not restore the superseded CMS-hosted OAuth prototype from backup branches.
 
+The canonical local checkout is `C:\COZE_CORP\pagescms` on `main`. Keep it synchronized and clean after completed work. Retire temporary branches and worktrees after their changes are merged or safely archived; do not keep permanent `pagescms-*` copies alongside it. Build through Cloudflare or a temporary clean checkout when local dotenv files prevent a safe production build.
+
 ## Working rules
 
 - Do not deploy, run production migrations, modify production records, or expose secrets without explicit authorization.

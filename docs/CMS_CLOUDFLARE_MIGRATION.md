@@ -9,8 +9,8 @@ Status: **Live on Cloudflare; automatic deployment verified.** The normal `https
 ## Scope and source
 
 - Production CMS: `https://cms.coze.care`, repository `cozmo-coze-ai/pagescms`, branch `main`.
-- Release checkout: `C:\COZE_CORP\pagescms-cloudflare-release`, branch `migrate/cloudflare-cms-release`, based on previous main `4deeb0e`.
-- Only reviewed migration changes were transferred from the pre-migration snapshot. The original dirty `pagescms` checkout and earlier `pagescms-cloudflare` worktree retain unfinished homepage OAuth/MCP, Zod 4 and other changes. Do not reset them or blindly commit that work into the migration.
+- Current checkout: `C:\COZE_CORP\pagescms`, branch `main`. The temporary migration and editor worktrees and their five local branches were retired after verification; use this checkout for ongoing work.
+- Original migration history: only reviewed changes were transferred from the pre-migration snapshot. The old CMS-hosted OAuth/MCP and Zod 4 prototype is archived outside the workspace and in the remote backup branch. Do not merge it into the working implementation. See the cleanup record in [the editor handoff](CHATGPT_EDITOR_HANDOFF.md).
 - The separate ChatGPT homepage Worker, its OAuth connection, publishing confirmation and the public homepage source were not changed by this migration. Bookings, financial records, guest messages and other services were not modified.
 
 ## Runtime and automatic deployment

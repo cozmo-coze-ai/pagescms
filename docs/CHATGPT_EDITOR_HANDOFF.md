@@ -72,3 +72,11 @@ After deployment, verify CMS sign-in/admin connection, connector OAuth and tools
 - Historical standalone editor/plugin backup: [private coze_cms feature/itinerary-plugin](https://github.com/cozmo-coze-ai/coze_cms/tree/feature/itinerary-plugin). Current development belongs in this repository's `chatgpt-editor/` directory. Original homepage snapshot: [backup/homepage-editor-20260929](https://github.com/cozmo-coze-ai/coze_cms/tree/backup/homepage-editor-20260929), commit `ec8089a6ef226a73cd49da9b1cf97c9474f06544`. Backup branches do not replace the unrelated `coze_cms/main` or deploy automatically.
 
 The original mixed `pagescms` files were preserved before the checkout was cleaned and synchronized. Credentials and generated bundles are excluded from Git backups. The combined-source integration retains the tested CMS and connector implementations; it does not activate the obsolete CMS-hosted OAuth prototype or require a database migration.
+
+## Local workspace cleanup
+
+After the owner's request to retain only `main`, the five temporary local branches and three linked worktree registrations were removed. The canonical working folder is `C:\COZE_CORP\pagescms`; it includes the current `chatgpt-editor/`. All required production source was already merged. The remote prototype backup remains available.
+
+Archive: `C:\Users\cozmo\.codex\backups\pagescms-cleanup-20260929-175632`. It contains a verified complete Git bundle, saved refs/config, and all three retired folders, including uncommitted files and local configuration. Hashes for 1,157 source/configuration files were verified after moving the folders; main's private environment files were also verified unchanged. Archived worktree `.git` pointer files were renamed so the folders cannot act as live checkouts. The earlier local stash remains available.
+
+Historical one-time migration helpers referencing the removed worktree paths are archived workflows. For future builds use Cloudflare or create a temporary clean checkout; do not repoint those helpers at a folder containing production dotenv files.
