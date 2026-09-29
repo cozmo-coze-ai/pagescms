@@ -4,7 +4,7 @@
 
 Existing plugin [COZE Homepage & Itinerary Editor](https://chatgpt.com/plugins/plugin_ce7a0f7893008191a2b49a669dea575d) is **0.4.0**. All seven downloaded release files match the submitted bundle, preserving its canonical identity, original icon, three starter prompts, app attachment and audience. The supported app-server save/read APIs completed the update; Plugin Creator's direct update tool was not available in this session. The save response does not expose a separate release ID.
 
-Same app: `asdk_app_6abb1da4205c81919a0468aee3675954`; its display name remains **COZE Homepage Editor**. Same OAuth endpoint: `https://coze-homepage-editor.cozmo-ca1.workers.dev/mcp`. Worker version **340de33b-db3c-4138-a9ac-68a4a452b361** is deployed.
+Same app: `asdk_app_6abb1da4205c81919a0468aee3675954`; its display name remains **COZE Homepage Editor**. Same OAuth endpoint: `https://coze-homepage-editor.cozmo-ca1.workers.dev/mcp`. Worker version **c97bf052-9ff3-4d47-9553-37988ec09677** is deployed from the unified repository's automatic Cloudflare build.
 
 **Pending in the ChatGPT client:** refresh this existing developer app's tools and reconnect to approve `itineraries:read` / `itineraries:write`. The latest `app/read` metadata still showed seven homepage tools; the live server advertises 17 including component-only acknowledgements. The owner reported not finding Refresh tools. Do not create another app, claim the client has refreshed, or bypass consent. Start a new conversation after refresh. A real ChatGPT itinerary preview and approved production publication have not yet been verified.
 

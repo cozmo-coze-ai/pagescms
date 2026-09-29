@@ -39,6 +39,17 @@ Pre-integration editor Worker: `340de33b-db3c-4138-a9ac-68a4a452b361`; pre-itine
 
 ## Automatic deployment
 
+**Production verified 2026-09-29, 17:52 KST.** Both Workers built and deployed automatically from merged source commit `67d2ed9e9fb7ff354197c64e028bc66342da952c`:
+
+| Worker | Successful build | Deployed version | Build running time |
+| --- | --- | --- | --- |
+| CMS | `a84e8831-b466-4d3f-9278-7bd467c02e19` | `a4cc4692-ddd7-40a6-b769-b4237a07a2a8` | 112 seconds |
+| ChatGPT editor | `be02433a-48a7-4feb-b1b1-168d32c466a9` | `c97bf052-9ff3-4d47-9553-37988ec09677` | 33 seconds, after waiting for the CMS build |
+
+These are observed times, not guarantees. Post-deploy CMS checks confirmed sign-in, static assets, the existing admin PMS connection, authenticated cron configuration and rejection of anonymous private APIs. The public site and admin panel returned HTTP 200. The real editor OAuth check read the current homepage and all 37 itineraries, advertised all 17 server tools, and rendered the private preview at 320/390/1440px. It verified ownership/capability checks and refusal to publish without confirmation; CMS content and timestamps remained unchanged. The private preview was ready in 2.65 seconds. The original Durable Object preview ID survived redeployment. Local stale Next route types were regenerated; the main working checkout also passes TypeScript and is clean.
+
+The latest ChatGPT app metadata still lists seven old homepage tools. Server-side verification does not replace **Refresh tools**, new-scope consent or real ChatGPT client testing. Workspace sharing remains subject to the owner's permissions; no sharing permission was bypassed.
+
 Both deployments watch only `main` of `cozmo-coze-ai/pagescms`:
 
 | Worker | Root | Build | Deploy | Watched source |
