@@ -47,8 +47,19 @@ secret; never replace it with a single-person list. Set `enabled:false` to revok
 one supplemental member while preserving the others.
 
 Local verification: 31 tests, type checks, dry-run build, and both original and
-supplemental native-browser OAuth/runtime tests passed. Deployment and founder
-hosted checks must be recorded below before reporting the new access as live.
+supplemental native-browser OAuth/runtime tests passed.
+
+**Production verified 2026-09-29, 18:30 KST:** release
+`68ec118be7322010ee3c0d7fcc882d401093ff63` is on `main` and deployed. CMS build
+`cfaabe3c-ba16-472f-985c-f01a59459f96` passed in 93 seconds; editor build
+`b785bf90-677d-46d8-b1b5-0b00365bdceb` passed in 25 seconds after the CMS build.
+The founder authenticated with full homepage/itinerary scopes, read the current
+homepage and all 37 itineraries, and received all 17 server tools. His protected
+preview was ready in 2.675 seconds and rendered at 320/390/1440px. Publication
+without confirmation was rejected; CMS content and timestamps were unchanged.
+Original member/mapping secrets remain present. The owner connection was also
+checked separately. Verification grants were revoked after testing.
+
 ChatGPT currently reports the plugin as private and cannot publish it to the
 company from this session. A runtime identity is not proof of a ChatGPT invite,
 installation, app visibility or company marketplace import.
