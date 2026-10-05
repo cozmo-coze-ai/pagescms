@@ -6,6 +6,7 @@
   "plugins": [
     {
       "name": "gpt-96a7a163626e05f4185de181791ba82a",
+      "pluginId": "plugin_ce7a0f7893008191a2b49a669dea575d",
       "source": {
         "source": "local",
         "path": "./chatgpt-editor/plugin/coze-editor"

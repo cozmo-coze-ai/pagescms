@@ -12,6 +12,8 @@ assert.equal(catalog.plugins.length, 1, 'Review any extra company plugin before 
 const [entry] = catalog.plugins;
 assert.equal(entry.source.source, 'local');
 assert.equal(entry.source.path, './chatgpt-editor/plugin/coze-editor');
+assert.equal(entry.pluginId, 'plugin_ce7a0f7893008191a2b49a669dea575d',
+  'Keep the existing COZE workspace plugin when importing this GitHub marketplace.');
 assert.equal(entry.policy.installation, 'AVAILABLE');
 assert.equal(entry.policy.authentication, 'ON_INSTALL');
 

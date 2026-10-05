@@ -23,6 +23,12 @@ The owner confirmed this option is available on 2026-09-29. Enter:
 
 Authorize the admin's GitHub connection to read this private repository. Use the
 ChatGPT sign-in flow; do not paste GitHub tokens into chat or plugin files.
+The marketplace entry includes the verified existing workspace plugin ID
+`plugin_ce7a0f7893008191a2b49a669dea575d`. Confirm that this ID appears
+after import; it keeps the existing plugin identity rather than creating a
+second COZE plugin. The admin must import from the same Business workspace
+that owns this plugin.
+
 Import, then review the results. Open the imported **COZE Homepage & Itinerary
 Editor**, make it available to the intended team roles, and enable its required
 COZE app for those roles. Each teammate authenticates their own COZE identity
@@ -62,11 +68,11 @@ manifest identity/version, bundled assets and the registered app reference. The
 Cloudflare check does not gate ChatGPT's separate sync: validate plugin changes
 before merging. For runtime changes also run the normal editor checks and tests.
 
-Personal ZIP copies remain separate. The existing personal plugin ID must not be
-used as a company migration target: OpenAI requires the target plugin to belong
-to the same workspace. Once a company plugin exists, retain the same marketplace
-entry. If migrating an already existing company plugin, first verify its ID in
-that workspace and use the documented `pluginId` migration mechanism.
+Personal ZIP copies in other workspaces remain separate. OpenAI requires a
+`pluginId` migration target to belong to the same workspace. The existing COZE
+plugin ID in this catalog was verified as a private WORKSPACE plugin, version
+0.4.1, before adding it. Keep this marketplace entry and plugin ID for future
+releases; the GitHub source is already at version 0.4.2.
 
 To revert an instruction release, restore the prior content with a new version,
 merge and sync. Do not delete/reimport the marketplace to force an update;
@@ -74,10 +80,9 @@ deleting it deletes its imported plugins.
 
 ## Activation evidence
 
-Repository setup and validation are separate from workspace activation. At the
-time this setup was prepared, the personal plugin was private and reported
-`canPublishToWorkspace: false`. No authenticated workspace marketplace import
-tool is available to this coding session. The owner must complete the import
+Repository setup and validation are separate from workspace activation. The
+current plugin record is a private WORKSPACE plugin. No authenticated workspace
+marketplace import tool is available to this coding session. The owner must complete the import
 above. Record its result, company plugin ID, sync status and successful homepage
 and itinerary reads here before claiming company auto-updates are active.
 
