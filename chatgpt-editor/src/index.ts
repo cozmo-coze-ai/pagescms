@@ -24,7 +24,7 @@ export default {
     const provider = new OAuthProvider<Env>({
       apiRoute: "/mcp", authorizeEndpoint: "/authorize", tokenEndpoint: "/oauth/token", clientRegistrationEndpoint: "/oauth/register",
       accessTokenTTL: 900, refreshTokenTTL: 2_592_000, clientIdMetadataDocumentEnabled: true,
-      scopesSupported: ["homepage:read", "homepage:write", "itineraries:read", "itineraries:write", "offline_access"], requiredScopes: ["homepage:read", "homepage:write", "itineraries:read", "itineraries:write"],
+      scopesSupported: ["homepage:read", "homepage:write", "itineraries:read", "itineraries:write", "offline_access"], requiredScopes: ["homepage:read"],
       resourceMetadata: { resource: `${env.PUBLIC_ORIGIN}/mcp`, authorization_servers: [env.PUBLIC_ORIGIN] },
       apiHandler: { async fetch(req, bindings, authCtx) {
         const authenticated = authCtx as OAuthResourceContext<{ userId: string }>;

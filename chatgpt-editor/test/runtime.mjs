@@ -31,6 +31,7 @@ try {
   assert.equal(noAuth.status, 401);
   const metadata = await fetch('/.well-known/oauth-protected-resource/mcp');
   assert.equal(metadata.status, 200);
+  assert.deepEqual((await metadata.json()).scopes_supported, ['homepage:read']);
   const register = await fetch('/oauth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_name: 'Test ChatGPT', redirect_uris: ['https://chatgpt.com/connector_platform/oauth/callback'], token_endpoint_auth_method: 'none', grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'] }) });
   assert.equal(register.status, 201);
   const client = await register.json();
@@ -61,7 +62,60 @@ try {
   const exchangeBody = { grant_type: 'authorization_code', client_id: client.client_id, redirect_uri: client.redirect_uris[0], code: redirect.searchParams.get('code'), code_verifier: verifier, resource: `${origin}/mcp` };
   const tokenResponse = await fetch('/oauth/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(exchangeBody).toString() });
   assert.equal(tokenResponse.status, 200, await tokenResponse.clone().text());
-  const token = await tokenResponse.json(); assert.ok(token.access_token);
+  let token = await tokenResponse.json(); assert.ok(token.access_token);
+  // A later scope upgrade in the same browser still requires visible consent,
+  // but must not ask the member to type their connection key again.
+  const rememberedQuery = new URLSearchParams(query);
+  rememberedQuery.set('state', 'remember-first');
+  const firstConsent = await fetch(`/authorize?${rememberedQuery}`);
+  assert.equal(firstConsent.status, 200);
+  const firstHandle = /name="handle" value="([^"]+)"/.exec(await firstConsent.text())?.[1]; assert.ok(firstHandle);
+  const firstCookie = firstConsent.headers.getSetCookie().map(c => c.split(';')[0]).join('; ');
+  const firstApproval = await fetch('/authorize', { method: 'POST', headers: { origin, cookie: firstCookie, 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ handle: firstHandle, key, decision: 'approve' }).toString(), redirect: 'manual' });
+  assert.equal(firstApproval.status, 302);
+  const browserCookie = firstApproval.headers.getSetCookie().find(c => c.startsWith('__Host-coze_editor_session='))?.split(';')[0];
+  assert.ok(browserCookie, 'successful sign-in must remember this browser');
+  const upgradedQuery = new URLSearchParams(query);
+  upgradedQuery.set('state', 'remember-upgrade');
+  upgradedQuery.set('scope', 'homepage:read homepage:write itineraries:read itineraries:write');
+  const upgradeConsent = await fetch(`/authorize?${upgradedQuery}`, { headers: { cookie: browserCookie } });
+  assert.equal(upgradeConsent.status, 200);
+  const upgradeHtml = await upgradeConsent.text();
+  assert.ok(upgradeHtml.includes('Signed in on this browser as'));
+  assert.ok(upgradeHtml.includes('itineraries:write'));
+  assert.ok(!upgradeHtml.includes('name="key"'));
+  const upgradeHandle = /name="handle" value="([^"]+)"/.exec(upgradeHtml)?.[1]; assert.ok(upgradeHandle);
+  const upgradeCookie = [browserCookie, ...upgradeConsent.headers.getSetCookie().map(c => c.split(';')[0])].join('; ');
+  const rejectedUpgrade = await fetch('/authorize', { method: 'POST', headers: { origin: 'https://attacker.example.test', cookie: upgradeCookie, 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ handle: upgradeHandle, decision: 'approve' }).toString(), redirect: 'manual' });
+  assert.equal(rejectedUpgrade.status, 403);
+  const upgradeApproval = await fetch('/authorize', { method: 'POST', headers: { origin, cookie: upgradeCookie, 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ handle: upgradeHandle, decision: 'approve' }).toString(), redirect: 'manual' });
+  assert.equal(upgradeApproval.status, 302, await upgradeApproval.clone().text());
+  const upgradeRedirect = new URL(upgradeApproval.headers.get('location'));
+  assert.equal(upgradeRedirect.searchParams.get('state'), 'remember-upgrade');
+  const upgradeExchangeBody = { ...exchangeBody, code: upgradeRedirect.searchParams.get('code') };
+  const upgradeTokenResponse = await fetch('/oauth/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(upgradeExchangeBody).toString() });
+  assert.equal(upgradeTokenResponse.status, 200, await upgradeTokenResponse.clone().text());
+  token = await upgradeTokenResponse.json(); assert.ok(token.access_token);
+  const switched = await fetch(`/authorize?${upgradedQuery}&switch=1`, { headers: { cookie: browserCookie } });
+  assert.ok((await switched.text()).includes('name="key"'), 'account switching must require a key');
+  const otherBrowser = await fetch(`/authorize?${upgradedQuery}`, { headers: { cookie: '__Host-coze_editor_session=' + 'f'.repeat(64) } });
+  assert.ok((await otherBrowser.text()).includes('name="key"'), 'an unknown browser must require a key');
+  const otherRegistration = await fetch('/oauth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_name: 'Another client', redirect_uris: [client.redirect_uris[0]], token_endpoint_auth_method: 'none', grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'] }) });
+  assert.equal(otherRegistration.status, 201);
+  const otherClient = await otherRegistration.json();
+  const otherClientQuery = new URLSearchParams(upgradedQuery); otherClientQuery.set('client_id', otherClient.client_id);
+  const otherClientConsent = await fetch(`/authorize?${otherClientQuery}`, { headers: { cookie: browserCookie } });
+  assert.equal(otherClientConsent.status, 200);
+  const otherClientHtml = await otherClientConsent.text();
+  assert.ok(otherClientHtml.includes('name="key"'), 'a different OAuth client must require its own sign-in');
+  const otherClientHandle = /name="handle" value="([^"]+)"/.exec(otherClientHtml)?.[1]; assert.ok(otherClientHandle);
+  const otherClientCookies = [browserCookie, ...otherClientConsent.headers.getSetCookie().map(c => c.split(';')[0])].join('; ');
+  const crossClientApproval = await fetch('/authorize', { method: 'POST', headers: { origin, cookie: otherClientCookies, 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ handle: otherClientHandle, decision: 'approve' }).toString(), redirect: 'manual' });
+  assert.equal(crossClientApproval.status, 403);
   const tools = await fetch('/mcp', { method: 'POST', headers: { authorization: `Bearer ${token.access_token}`, accept: 'application/json, text/event-stream', 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) });
   assert.equal(tools.status, 200, await tools.clone().text());
   assert.ok((await tools.json()).result.tools.some(t => t.name === 'publishHomepage'));
@@ -82,7 +136,7 @@ try {
     const saved=await call('publishItinerary',{changeId,confirmedByUser:true});assert.equal(saved.isError,undefined,JSON.stringify(saved));assert.equal(saved.structuredContent.state,'publishing');
     console.log('PASS: full-scope OAuth, Hyperdrive/pg in Workerd, CMS list/read, private preview, preview gating and atomic publication to the disposable local database.');
   }
-  const replay = await fetch('/oauth/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(exchangeBody).toString() });
+  const replay = await fetch('/oauth/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(upgradeExchangeBody).toString() });
   assert.equal(replay.status, 400);
   const afterReplay = await fetch('/mcp', { method: 'POST', headers: { authorization: `Bearer ${token.access_token}` } });
   assert.equal(afterReplay.status, 401);

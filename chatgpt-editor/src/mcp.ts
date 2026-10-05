@@ -64,7 +64,7 @@ export function createServer(rpc: Rpc, canWrite: boolean, widget: string, frameD
         annotations:{readOnlyHint:!write,destructiveHint:name==="publishItinerary",idempotentHint:name!=="uploadItineraryPhoto",openWorldHint:true},
         _meta:{securitySchemes:[{type:"oauth2",scopes}],...extra}},async input=>{
         if (scopes.some(s=>!itineraries.scopes.includes(s))) return {isError:true,content:[{type:"text",text:"Reconnect COZE to allow itinerary access. Your current homepage connection still works."}],
-          _meta:{"mcp/www_authenticate":[`Bearer error="insufficient_scope", scope="${scopes.join(' ')}", resource_metadata="${itineraries.resourceMetadata}"`]}};
+          _meta:{"mcp/www_authenticate":[`Bearer error="insufficient_scope", error_description="COZE itinerary access needs additional permission", scope="${scopes.join(' ')}", resource_metadata="${itineraries.resourceMetadata}"`]}};
         try {
           let payload:unknown=input;
           if(name==="uploadItineraryPhoto") { const value=input as any; payload={slug:value.slug,filename:value.filename,downloadUrl:value.imageFiles[0].download_url,forNewItinerary:value.forNewItinerary}; }

@@ -151,7 +151,7 @@ test("itinerary tools require their own scopes and literal confirmation, leaving
   }
   const list=await call('tools/list');assert.ok(list.result.tools.some((t:any)=>t.name==='getHomepage'));assert.ok(list.result.tools.some((t:any)=>t.name==='getItinerary'));
   assert.ok(list.result.tools.some((t:any)=>t.name==='prepareNewItineraryPreview'));
-  const denied=await call('tools/call',{name:'getItinerary',arguments:{slug:content.slug}});assert.equal(denied.result.isError,true);assert.ok(denied.result._meta['mcp/www_authenticate']);assert.equal(calls.length,0);
+  const denied=await call('tools/call',{name:'getItinerary',arguments:{slug:content.slug}});assert.equal(denied.result.isError,true);assert.match(denied.result._meta['mcp/www_authenticate'][0],/error_description="COZE itinerary access needs additional permission"/);assert.equal(calls.length,0);
   const allowed=await call('tools/call',{name:'getItinerary',arguments:{slug:content.slug}},['itineraries:read']);assert.equal(allowed.result.isError,undefined);assert.deepEqual(calls,['itinerary:read']);
   const invalid=await call('tools/call',{name:'publishItinerary',arguments:{changeId:crypto.randomUUID(),confirmedByUser:false}},['itineraries:read','itineraries:write']);assert.ok(invalid.error||invalid.result.isError);assert.equal(calls.length,1);
   const acknowledgement=list.result.tools.find((t:any)=>t.name==='markItineraryPreviewViewed');assert.deepEqual(acknowledgement._meta.ui.visibility,['app']);
