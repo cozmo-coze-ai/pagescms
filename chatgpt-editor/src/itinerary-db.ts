@@ -7,6 +7,8 @@ export interface ItineraryRepository {
   authorize(owner: string, write?: boolean): Promise<string>;
   list(owner: string, search: string, offset: number): Promise<any>;
   read(owner: string, slug: string): Promise<ItineraryRecord>;
+  ensureAvailable(owner: string, slug: string): Promise<void>;
+  create(owner: string, changeId: string, after: ItineraryContent, rationale: string): Promise<{ publishedAt: string; affectsSite: boolean }>;
   publish(owner: string, changeId: string, before: ItineraryRecord, after: ItineraryContent, rationale: string): Promise<{ publishedAt: string; affectsSite: boolean }>;
   published(owner: string, changeId: string): Promise<{ publishedAt: string; affectsSite: boolean } | null>;
 }
@@ -43,6 +45,11 @@ export class ItineraryDatabase implements ItineraryRepository {
     const content = fromRow(rows[0]);
     return { content, revision: await contentRevision(content), updatedAt: new Date(rows[0].updated_at).toISOString() };
   }
+  async ensureAvailable(owner: string, slug: string) {
+    await this.authorize(owner);
+    const { rows } = await this.freshQuery("SELECT 1 FROM public.cms_itinerary WHERE slug=$1", [slug]);
+    if (rows[0]) fail("That itinerary address already exists. Choose another address or edit the existing itinerary.", 409);
+  }
   async published(owner: string, changeId: string) {
     const id = await this.authorize(owner);
     const { rows } = await this.freshQuery(`SELECT p.published_at, p.published_by, v.content AS before_content, a.content AS after_content
@@ -78,6 +85,34 @@ export class ItineraryDatabase implements ItineraryRepository {
       if (affectsSite) await this.sql.query(`INSERT INTO public.cms_deploy_trigger(id,triggered_at,dirty_at) VALUES(1,to_timestamp(0),clock_timestamp()) ON CONFLICT(id) DO UPDATE SET dirty_at=clock_timestamp()`);
       await this.sql.query("COMMIT");
       return { publishedAt: new Date(inserted.rows[0].published_at).toISOString(), affectsSite };
+    } catch (error) { await this.sql.query("ROLLBACK").catch(() => {}); throw error; }
+    finally { this.inTransaction = false; }
+  }
+  async create(owner: string, changeId: string, after: ItineraryContent, rationale: string) {
+    await this.sql.query("BEGIN");
+    this.inTransaction = true;
+    try {
+      await this.sql.query("SET LOCAL lock_timeout='5s'");
+      await this.sql.query("SET LOCAL statement_timeout='15s'");
+      const user = await this.authorize(owner, true);
+      const previous = await this.published(owner, changeId);
+      if (previous) { await this.sql.query("COMMIT"); return previous; }
+      try {
+        await this.sql.query(`INSERT INTO public.cms_itinerary(slug,title,category,tag,tag_color,cover_path,published,body,updated_at,updated_by)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8,clock_timestamp(),$9)`,
+          [after.slug,after.title,after.category,after.tag,after.tagColor,after.cover,after.published,after.body,user]);
+      } catch (error: any) {
+        if (error?.code === "23505") fail("That itinerary address was created by someone else. Choose another address or edit the existing itinerary.", 409);
+        throw error;
+      }
+      const inserted = await this.sql.query(`INSERT INTO public.cms_proposal(id,kind,target,base_updated_at,status,published_at,published_by)
+        VALUES($1,'itinerary',$2,NULL,'published',clock_timestamp(),$3) RETURNING published_at`, [changeId,after.slug,user]);
+      await this.sql.query(`INSERT INTO public.cms_proposal_version(proposal_id,version,content,rationale,author) VALUES
+        ($1,0,'{}'::jsonb,'No prior itinerary; created by this change','COZE CMS'),($1,1,$2::jsonb,$3,$4)`,
+        [changeId,JSON.stringify(after),rationale,`ChatGPT:${owner}`]);
+      if (after.published) await this.sql.query(`INSERT INTO public.cms_deploy_trigger(id,triggered_at,dirty_at) VALUES(1,to_timestamp(0),clock_timestamp()) ON CONFLICT(id) DO UPDATE SET dirty_at=clock_timestamp()`);
+      await this.sql.query("COMMIT");
+      return { publishedAt: new Date(inserted.rows[0].published_at).toISOString(), affectsSite: after.published };
     } catch (error) { await this.sql.query("ROLLBACK").catch(() => {}); throw error; }
     finally { this.inTransaction = false; }
   }

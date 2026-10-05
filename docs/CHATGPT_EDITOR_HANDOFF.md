@@ -8,12 +8,12 @@
 
 The local `pagescms` checkout was synchronized with production main after all 92 mixed prototype files were backed up and verified. That obsolete prototype is not required by either live Worker. The original snapshot remains on `backup/cms-editor-work-20260929`, in Git stash, and in the owner's protected local backup folder.
 
-- Workflow plugin: [COZE Homepage & Itinerary Editor](https://chatgpt.com/plugins/plugin_ce7a0f7893008191a2b49a669dea575d), version **0.4.1**, saved and read back. Founder/team instructions now keep GitHub and deployment setup with the administrator. App, assets, identity and private audience are preserved.
+- Workflow plugin: [COZE Homepage & Itinerary Editor](https://chatgpt.com/plugins/plugin_ce7a0f7893008191a2b49a669dea575d). Version **0.4.1** was the last account release read back; repository source **0.4.2** adds new-itinerary creation and awaits the normal marketplace sync. Founder/team instructions keep GitHub and deployment setup with the administrator. App, assets, identity and private audience are preserved.
 - Required connected app: `asdk_app_6abb1da4205c81919a0468aee3675954`.
 - OAuth MCP endpoint: `https://coze-homepage-editor.cozmo-ca1.workers.dev/mcp`.
 - The same-name workflow plugin and connected app are both needed.
 
-The same connection now supports homepage design and existing CMS itinerary content with separate tools/scopes. Both require the requester's explicit yes after the exact preview; no separate admin reviewer. The existing homepage safeguards remain.
+The same connection supports homepage design plus creating and editing CMS itinerary content with separate tools/scopes. Both require the requester's explicit yes after the exact preview; no separate admin reviewer. The existing homepage safeguards remain.
 
 **ChatGPT activation pending:** open [the existing app](https://chatgpt.com/plugins/plugin_asdk_app_6abb1da4205c81919a0468aee3675954), choose **Manage app → Refresh tools**, then reconnect if asked to approve `itineraries:read` / `itineraries:write`. The owner has located this menu; the latest metadata check still listed seven old homepage tools. Start a new chat after refreshing. Do not create another same-name app or bypass consent. A complete itinerary preview/publication through the real ChatGPT client is not yet verified.
 
@@ -70,7 +70,7 @@ The CMS is on Cloudflare using existing Supabase data. The standalone connector 
 
 Legacy itinerary REST routes exist under `app/api/agent/itineraries`, but they are not an installed MCP connection. Personal homepage keys cannot authorize those legacy routes. Do not widen homepage permissions or enable the old shared-token routes as a shortcut.
 
-Tools: `listItineraries`, `getItinerary`, `uploadItineraryPhoto`, `prepareItineraryPreview`, `getItineraryChange`, `showItineraryPreview`, component-only `markItineraryPreviewViewed`, and `publishItinerary`. `getEditorProfile` reports available access. Existing homepage tools remain. Itinerary addresses/templates are locked; existing text, Markdown, category, tags, cover/photos and publication state are editable. Drafts stay unpublished unless the exact approved proposal changes that state.
+Tools: `listItineraries`, `getItinerary`, `uploadItineraryPhoto`, `prepareItineraryPreview`, `prepareNewItineraryPreview`, `getItineraryChange`, `showItineraryPreview`, component-only `markItineraryPreviewViewed`, and `publishItinerary`. `getEditorProfile` reports available access. Existing homepage tools remain. New itineraries use a unique address and default to unpublished; addresses are locked after creation. Text, Markdown, category, tags, cover/photos and publication state are editable. Drafts stay unpublished unless the exact approved proposal changes that state.
 
 New private runtime mapping `ITINERARY_EDITORS_JSON` links OAuth member `coze-owner` to Nishat's existing CMS user. Every operation rechecks enabled membership and current CMS role. The old member list and hashed connection key were preserved. Teammates need independent keys and CMS mappings.
 

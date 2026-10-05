@@ -15,13 +15,15 @@ class Memory implements Store {
   async list<T>(options?:{prefix?:string}){return new Map([...this.data.entries()].filter(([k])=>k.startsWith(options?.prefix??""))) as Map<string,T>;}
 }
 async function setup(published=true) {
-  const store=new Memory(); const saved=new Map<string,any>(); let role="editor",writes=0,lostResponse=false;
+  const store=new Memory(); const saved=new Map<string,any>(); let role="editor",writes=0,lostResponse=false,created:ItineraryRecord|null=null;
   let current:ItineraryRecord={content:{...content,published},revision:"",updatedAt:"2026-09-29T00:00:00.000Z"}; current.revision=await contentRevision(current.content);
   const db:ItineraryRepository={
     async authorize(owner,write){if(owner!=="alice"&&owner!=="bob")throw new PublicError("Removed",403); if(role==="removed" || write && role!=="editor")throw new PublicError("Read only",403);return owner;},
     async list(){return {items:[{slug:content.slug}],nextOffset:null};},
-    async read(owner,slug){await this.authorize(owner);if(slug!==content.slug)throw new PublicError("Not found",404);return structuredClone(current);},
+    async read(owner,slug){await this.authorize(owner);if(slug===content.slug)return structuredClone(current);if(created?.content.slug===slug)return structuredClone(created);throw new PublicError("Not found",404);},
+    async ensureAvailable(owner,slug){await this.authorize(owner);if(slug===content.slug||created?.content.slug===slug)throw new PublicError("That itinerary address already exists",409);},
     async published(owner,id){await this.authorize(owner);return saved.get(id)??null;},
+    async create(owner,id,after){await this.authorize(owner,true);const previous=saved.get(id);if(previous)return previous;await this.ensureAvailable(owner,after.slug);writes++;created={content:after,revision:await contentRevision(after),updatedAt:new Date().toISOString()};const value={publishedAt:new Date().toISOString(),affectsSite:after.published};saved.set(id,value);if(lostResponse)throw new Error("Connection lost after commit");return value;},
     async publish(owner,id,before,after){await this.authorize(owner,true);if(current.revision!==before.revision)throw new PublicError("Stale",409);writes++;current={...current,content:after,revision:await contentRevision(after)};const value={publishedAt:new Date().toISOString(),affectsSite:before.content.published||after.published};saved.set(id,value);if(lostResponse)throw new Error("Connection lost after commit");return value;},
   };
   let manifest:any=null;
@@ -29,7 +31,7 @@ async function setup(published=true) {
   const env={PUBLIC_ORIGIN:"https://editor.example.test",OAUTH_KV:{async put(key:string,value:Uint8Array){kv.set(key,Uint8Array.from(value).buffer);},async get(key:string){return kv.get(key)??null;}}} as unknown as Env;
   const backend=new ItineraryBackend(env,store,db,async()=>manifest);
   const prepare=()=>backend.prepare("alice",{slug:content.slug,expectedRevision:current.revision,changes:{title:"A quieter Seoul walk"},rationale:"Requested title update"});
-  return {backend,store,db,env,prepare,current:()=>current,writes:()=>writes,setRole:(r:string)=>role=r,lose:()=>lostResponse=true,setManifest:(m:any)=>manifest=m};
+  return {backend,store,db,env,prepare,current:()=>current,created:()=>created,writes:()=>writes,setRole:(r:string)=>role=r,lose:()=>lostResponse=true,setManifest:(m:any)=>manifest=m};
 }
 test("itinerary preview preserves omitted fields, is idempotent and makes no production writes",async()=>{
   const s=await setup();const a=await s.prepare(),b=await s.prepare();assert.equal(a.changeId,b.changeId);assert.equal(s.writes(),0);
@@ -69,6 +71,16 @@ test("editing an unpublished itinerary never silently makes it public",async()=>
   const s=await setup(false);const a=await s.prepare();const shown:any=await s.backend.status("alice",a.changeId,true);await s.backend.viewed("alice",a.changeId,shown._viewToken);
   assert.equal((await s.backend.publish("alice",a.changeId,true)).state,"saved_draft");assert.equal(s.current().content.published,false);
 });
+test("a new itinerary is previewed before an atomic CMS creation and defaults to unpublished",async()=>{
+  const s=await setup();
+  const draft=await s.backend.prepareNew("alice",{slug:"incheon-open-port",title:"Incheon Open Port",category:"tour",tag:null,tagColor:null,cover:null,body:"## Open Port\n\nA proposed day route.",rationale:"Create the requested itinerary"});
+  assert.equal(s.writes(),0);assert.equal(s.created(),null);assert.equal((draft as any).summary.operation,"create");assert.equal((draft as any).summary.publishedAfter,false);
+  await assert.rejects(s.backend.publish("alice",draft.changeId,true),/preview/);
+  const shown:any=await s.backend.status("alice",draft.changeId,true);await s.backend.viewed("alice",draft.changeId,shown._viewToken);
+  assert.equal((await s.backend.publish("alice",draft.changeId,true)).state,"saved_draft");assert.equal(s.writes(),1);assert.equal(s.created()?.content.published,false);
+  await s.backend.publish("alice",draft.changeId,true);assert.equal(s.writes(),1);
+  await assert.rejects(s.backend.prepareNew("alice",{slug:"incheon-open-port",title:"Duplicate",category:"tour",tag:null,tagColor:null,cover:null,body:"Duplicate",rationale:"Try duplicate"}),/already exists/);
+});
 test("unsafe HTML, image URLs, encoded script links and address changes are refused",async()=>{
   for(const body of ['<script>alert(1)</script>','<img src=x onerror=alert(1)>','<a href="jav&#97;script:alert(1)">go</a>','<a href="java\nscript:alert(1)">go</a>','<svg onload=alert(1)>','[x](javascript:alert(1))','![x](https://evil.example/x.png)'])assert.throws(()=>validateContent({...content,body}),(error:unknown)=>error instanceof Error,body);
   validateContent({...content,body:'<aside>Note</aside>\n\n![Photo](/itineraries/seoul-tour/photo.jpg)'});
@@ -100,6 +112,11 @@ test("photos stay private until the exact preview is confirmed and cannot cross 
     s.env.SUPABASE_URL='https://ihitnwzljfldctswwrsv.supabase.co';s.env.SUPABASE_SERVICE_ROLE_KEY='synthetic-storage-key';
     await s.backend.viewed('alice',preview.changeId,shown._viewToken);await s.backend.publish('alice',preview.changeId,true);
     assert.equal(publicWrites,1);assert.equal(s.writes(),1);assert.ok(s.current().content.body.includes('/itineraries/seoul-tour/chatgpt-'));assert.ok(!s.current().content.body.includes('@photo:'));
+    await assert.rejects(s.backend.photo('alice',{slug:'new-photo-tour',filename:'photo.png',downloadUrl:'https://files.openai.com/test.png'}),/Not found/);
+    const newPhoto=await s.backend.photo('alice',{slug:'new-photo-tour',filename:'photo.png',downloadUrl:'https://files.openai.com/test.png',forNewItinerary:true});
+    const newDraft=await s.backend.prepareNew('alice',{slug:'new-photo-tour',title:'New photo tour',category:'tour',tag:null,tagColor:null,cover:newPhoto.photoRef,body:`![New tour](${newPhoto.photoRef})`,rationale:'Create a new itinerary with its photo'});
+    const newShown:any=await s.backend.status('alice',newDraft.changeId,true);const newHtml=await (await s.backend.preview(newDraft.changeId,newShown._viewToken)).text();
+    assert.ok(newHtml.includes(`/itinerary-preview/${newDraft.changeId}/`));assert.equal(publicWrites,1);
   }finally{globalThis.fetch=original;}
 });
 
@@ -133,6 +150,7 @@ test("itinerary tools require their own scopes and literal confirmation, leaving
     return (await mcpResponse(req,async method=>{calls.push(method);return{ok:true}},true,'<p>Preview</p>',[],{enabled:true,scopes,resourceMetadata:'https://editor.example.test/.well-known/oauth-protected-resource/mcp',previewOrigin:'https://editor.example.test'})).json() as Promise<any>;
   }
   const list=await call('tools/list');assert.ok(list.result.tools.some((t:any)=>t.name==='getHomepage'));assert.ok(list.result.tools.some((t:any)=>t.name==='getItinerary'));
+  assert.ok(list.result.tools.some((t:any)=>t.name==='prepareNewItineraryPreview'));
   const denied=await call('tools/call',{name:'getItinerary',arguments:{slug:content.slug}});assert.equal(denied.result.isError,true);assert.ok(denied.result._meta['mcp/www_authenticate']);assert.equal(calls.length,0);
   const allowed=await call('tools/call',{name:'getItinerary',arguments:{slug:content.slug}},['itineraries:read']);assert.equal(allowed.result.isError,undefined);assert.deepEqual(calls,['itinerary:read']);
   const invalid=await call('tools/call',{name:'publishItinerary',arguments:{changeId:crypto.randomUUID(),confirmedByUser:false}},['itineraries:read','itineraries:write']);assert.ok(invalid.error||invalid.result.isError);assert.equal(calls.length,1);

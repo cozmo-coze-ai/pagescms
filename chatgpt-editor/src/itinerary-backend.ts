@@ -1,15 +1,16 @@
 import { z } from "zod";
 import { type ItineraryRepository } from "./itinerary-db.ts";
-import { itineraryInput, contentRevision, validateContent, slugSchema, renderItinerary, bucket, mediaKey, mediaUrl, storageOrigin, legacyPhotoIssues, type ItineraryContent, type ItineraryRecord } from "./itinerary-model.ts";
+import { itineraryInput, newItineraryInput, contentRevision, validateContent, slugSchema, renderItinerary, bucket, mediaKey, mediaUrl, storageOrigin, legacyPhotoIssues, type ItineraryContent, type ItineraryRecord } from "./itinerary-model.ts";
 import { fail, PublicError, sha256, type Env, type Store } from "./types.ts";
 import { imageInfo, imageNameError } from "./vendor/homepage-guard.ts";
 
 type Photo = { id: string; owner: string; slug: string; key: string; mime: string; hash: string; expires: number };
 type Draft = { id: string; owner: string; slug: string; revision: string; rationale: string; created: number; expires: number;
+  operation?: "create" | "update";
   state: "ready" | "publishing" | "published"; token: string; viewed: boolean; photos: Photo[]; summary: unknown;
   publishedAt?: string; affectsSite?: boolean; error?: string };
 export type VersionManifest = { version: 1; fetchedAt: string; entries: Record<string,string> };
-export const photoInput = z.object({ slug: slugSchema, filename: z.string().max(150), downloadUrl: z.string().url() }).strict();
+export const photoInput = z.object({ slug: slugSchema, filename: z.string().max(150), downloadUrl: z.string().url(), forNewItinerary: z.boolean().default(false) }).strict();
 
 export async function liveVersions(): Promise<VersionManifest | null> {
   try {
@@ -41,7 +42,7 @@ export class ItineraryBackend {
   async read(owner: string, slug: string) {
     const item = await this.db.read(owner, slugSchema.parse(slug));
     return { ...item, url: `https://www.coze.care/itineraries/${slug}/`, existingPhotoIssues:legacyPhotoIssues(item.content.body).length,
-      rules: { existingItineraryOnly: true, addressLocked: true, bodyFormat: "Markdown", noInventedFacts: true,
+      rules: { addressLocked: true, bodyFormat: "Markdown", noInventedFacts: true,
         publication: "Prepare changes, show the content preview, ask the requester to publish this exact change, then wait for yes.",
         photos: "Use existing /itineraries/slug/file paths. To add a photo, call uploadItineraryPhoto with the attached file, then use its photoRef in changes.cover or ![alt](photoRef) in changes.body." } };
   }
@@ -55,7 +56,7 @@ export class ItineraryBackend {
   async photo(owner: string, raw: unknown) {
     await this.db.authorize(owner, true);
     const input = photoInput.parse(raw);
-    await this.db.read(owner,input.slug);
+    if (input.forNewItinerary) await this.db.ensureAvailable(owner,input.slug); else await this.db.read(owner,input.slug);
     if (imageNameError(input.filename)) fail(imageNameError(input.filename)!);
     await this.budget(owner);
     const url = new URL(input.downloadUrl);
@@ -76,7 +77,26 @@ export class ItineraryBackend {
     await this.db.authorize(owner,true);
     const input = itineraryInput.parse(raw); const before = await this.db.read(owner,input.slug);
     if (input.expectedRevision !== before.revision) fail("The itinerary changed. Read it again before preparing a preview.",409);
-    const after = { ...before.content,...input.changes }; const photos: Photo[] = [];
+    const after = { ...before.content,...input.changes };
+    const photos = await this.resolvePhotos(owner, after);
+    if(Object.hasOwn(input.changes,"cover") && after.cover) after.cover=mediaKey(after.cover);
+    validateContent(after,before.content);
+    const revision = await contentRevision(after); if (revision === before.revision) fail("There is no change to preview.");
+    return this.saveDraft(owner, "update", after, revision, input.rationale, photos, before);
+  }
+  async prepareNew(owner: string, raw: unknown) {
+    await this.db.authorize(owner,true);
+    const parsed = newItineraryInput.parse(raw);
+    const { rationale, ...after } = parsed;
+    await this.db.ensureAvailable(owner,after.slug);
+    const photos = await this.resolvePhotos(owner,after);
+    if (after.cover) after.cover=mediaKey(after.cover);
+    validateContent(after);
+    const revision=await contentRevision(after);
+    return this.saveDraft(owner,"create",after,revision,rationale,photos);
+  }
+  private async resolvePhotos(owner: string, after: ItineraryContent) {
+    const photos: Photo[] = [];
     for (const ref of new Set((JSON.stringify(after).match(/@photo:[a-f0-9-]{36}/g) ?? []))) {
       const id = ref.slice(7); const photo = await this.store.get<Photo>(`itinerary-photo:${id}`);
       if (!photo || photo.owner !== owner || photo.slug !== after.slug || photo.expires < Date.now()) fail("That photo expired or belongs to another itinerary. Attach it again.",403);
@@ -84,18 +104,19 @@ export class ItineraryBackend {
       after.body = after.body.split(ref).join(`/itineraries/${photo.key}`);
     }
     if (photos.length > 5) fail("Use up to five new photos in one change.");
-    if(Object.hasOwn(input.changes,"cover") && after.cover) after.cover=mediaKey(after.cover);
-    validateContent(after,before.content);
-    const revision = await contentRevision(after); if (revision === before.revision) fail("There is no change to preview.");
-    const requestKey = `itinerary-request:${await sha256(JSON.stringify([owner,before.revision,before.updatedAt,revision]))}`;
+    return photos;
+  }
+  private async saveDraft(owner:string,operation:"create"|"update",after:ItineraryContent,revision:string,rationale:string,photos:Photo[],before?:ItineraryRecord) {
+    const requestKey = `itinerary-request:${await sha256(JSON.stringify([owner,operation,before?.revision,before?.updatedAt,revision]))}`;
     const prior = await this.store.get<string>(requestKey);
     if (prior) { const previous = await this.store.get<Draft>(`itinerary:${prior}`); if (previous && previous.expires > Date.now() && previous.state === "ready") return this.status(owner,prior); }
     await this.budget(owner);
     const id = crypto.randomUUID();
-    const draft: Draft = { id,owner,slug: input.slug,revision,rationale: input.rationale,created: Date.now(),expires: Date.now()+86400_000,
+    const draft: Draft = { id,owner,slug: after.slug,revision,rationale,operation,created: Date.now(),expires: Date.now()+86400_000,
       state:"ready",token:crypto.randomUUID(),viewed:false,photos,
-      summary: { title: after.title, changedFields: Object.keys(after).filter(k => after[k as keyof ItineraryContent] !== before.content[k as keyof ItineraryContent]), publishedBefore:before.content.published,publishedAfter:after.published } };
-    await this.store.put(`itinerary-before:${id}`,before); await this.store.put(`itinerary-after:${id}`,after);
+      summary: { operation, title: after.title, changedFields: operation === "create" ? Object.keys(after) : Object.keys(after).filter(k => after[k as keyof ItineraryContent] !== before!.content[k as keyof ItineraryContent]), publishedBefore:before?.content.published ?? null,publishedAfter:after.published } };
+    if(before) await this.store.put(`itinerary-before:${id}`,before);
+    await this.store.put(`itinerary-after:${id}`,after);
     await this.store.put(`itinerary:${id}`,draft); await this.store.put(requestKey,id);
     return this.status(owner,id);
   }
@@ -150,15 +171,18 @@ export class ItineraryBackend {
     }
     if (!draft.viewed || draft.expires < Date.now()) fail("Show a fresh itinerary preview before publishing.",428);
     const before = await this.store.get<ItineraryRecord>(`itinerary-before:${id}`); const after = await this.content(draft);
-    if (!before) fail("The original content is unavailable. Prepare another preview.",409);
-    const current = await this.db.read(owner,draft.slug);
-    if (current.revision !== before.revision || current.updatedAt !== before.updatedAt) fail("The itinerary changed in CMS. Read it and prepare a fresh preview.",409);
+    const operation=draft.operation ?? "update";
+    if (operation === "update") {
+      if (!before) fail("The original content is unavailable. Prepare another preview.",409);
+      const current = await this.db.read(owner,draft.slug);
+      if (current.revision !== before.revision || current.updatedAt !== before.updatedAt) fail("The itinerary changed in CMS. Read it and prepare a fresh preview.",409);
+    } else await this.db.ensureAvailable(owner,draft.slug);
     // The existing CMS cron consumes the transactional dirty marker, including
     // when this Worker crashes after COMMIT. No extra deploy hook is necessary.
     draft.state = "publishing"; delete draft.error; await this.store.put(`itinerary:${id}`,draft);
     try {
       await this.publishPhotos(draft);
-      const saved = await this.db.publish(owner,id,before,after,draft.rationale);
+      const saved = operation === "create" ? await this.db.create(owner,id,after,draft.rationale) : await this.db.publish(owner,id,before!,after,draft.rationale);
       Object.assign(draft,saved,{state:"published"}); await this.store.put(`itinerary:${id}`,draft);
     } catch(error) {
       draft.error=error instanceof PublicError?error.message:"The save could not be confirmed. Check this change's status before retrying.";

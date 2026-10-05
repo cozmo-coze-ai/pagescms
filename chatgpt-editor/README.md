@@ -1,8 +1,8 @@
 # COZE Homepage & Itinerary Editor
 
-One Cloudflare MCP/OAuth connection for homepage design and existing CMS itinerary content. The requester sees the exact preview and confirms publication. No separate admin reviewer.
+One Cloudflare MCP/OAuth connection for homepage design and CMS itinerary creation/editing. The requester sees the exact preview and confirms publication. No separate admin reviewer.
 
-**Current release: plugin 0.4.0 and Worker `c97bf052-9ff3-4d47-9553-37988ec09677` are deployed.** Hosted reads of all 37 itineraries and a protected mobile content preview passed. Website revision verification is live. ChatGPT still needs the existing app's **Refresh tools** and consent to the added itinerary scopes; its latest metadata read still showed the old homepage tools. Full details, limitations, tests and rollback: [Itinerary extension](docs/ITINERARY_EDITOR.md).
+**Current source release: plugin 0.4.2.** It adds preview-first creation at a unique itinerary address while preserving the same approval, audit and deployment checks used for edits. ChatGPT still needs the existing app's **Refresh tools** and consent to the itinerary scopes; its latest metadata read showed the old homepage tools. Full details, limitations, tests and rollback: [Itinerary extension](docs/ITINERARY_EDITOR.md).
 
 Canonical source and complete plugin bundle: [`cozmo-coze-ai/pagescms/main/chatgpt-editor`](https://github.com/cozmo-coze-ai/pagescms/tree/main/chatgpt-editor). This directory is an independent npm project deployed to the existing `coze-homepage-editor` Worker. The CMS at the repository root deploys separately to `coze-cms`. Both use Cloudflare Git builds; runtime secrets and the existing OAuth endpoint stay unchanged. The original `coze_cms/feature/itinerary-plugin` branch is a historical backup. See [deployment and activation](../docs/CHATGPT_EDITOR_HANDOFF.md).
 

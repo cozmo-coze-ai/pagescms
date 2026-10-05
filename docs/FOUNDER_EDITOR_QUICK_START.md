@@ -18,11 +18,15 @@ Or:
 
 > Make the introduction of [itinerary name] shorter. Keep the prices, dates and included services unchanged. Show me the preview first.
 
+Or:
+
+> Create a new [destination] itinerary. Keep unconfirmed prices and operating details marked for confirmation. Show me the preview first.
+
 Check the preview. Say **yes** only when you want that exact change published.
 The editor will tell you when the website has actually updated.
 
 You can edit the allowed homepage design, photos and four-language text, plus
-existing itinerary content and photos. Booking, payment and guest-message systems
+create or edit itinerary content and photos. Booking, payment and guest-message systems
 are outside this editor.
 
 If you use both personal ChatGPT and COZE HOSPITALITY 3.0, installation and

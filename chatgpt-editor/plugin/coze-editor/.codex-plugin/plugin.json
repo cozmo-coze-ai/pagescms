@@ -14,12 +14,12 @@
     "developerName": "Nishat",
     "displayName": "COZE Homepage & Itinerary Editor",
     "logo": "./assets/gpt-icon.png",
-    "longDescription": "Edit the homepage layout, four-language copy and supported photos, or existing CMS itinerary text and photos. See a preview in chat, then confirm the exact change before publishing. Uses the same connected COZE app.",
-    "shortDescription": "Edit COZE homepage design and itinerary content, preview, then confirm publishing."
+    "longDescription": "Edit the homepage layout, four-language copy and supported photos, or create and edit CMS itinerary text and photos. See a preview in chat, then confirm the exact change before publishing. Uses the same connected COZE app.",
+    "shortDescription": "Edit COZE site content"
   },
   "name": "gpt-96a7a163626e05f4185de181791ba82a",
-  "version": "0.4.1",
-  "description": "Edit COZE homepage design and itinerary content, preview, then confirm publishing.",
+  "version": "0.4.2",
+  "description": "Edit the COZE homepage and create or edit itineraries, preview, then confirm publishing.",
   "author": {
     "name": "Nishat"
   },

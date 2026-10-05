@@ -16,6 +16,10 @@ export const itineraryInput = z.object({
   changes: contentSchema.omit({ slug: true }).partial().strict(),
   rationale: z.string().trim().min(3).max(1000),
 }).strict();
+export const newItineraryInput = contentSchema.extend({
+  published: z.boolean().default(false),
+  rationale: z.string().trim().min(3).max(1000),
+}).strict();
 export type ItineraryContent = z.infer<typeof contentSchema>;
 export type ItineraryRecord = { content: ItineraryContent; revision: string; updatedAt: string };
 

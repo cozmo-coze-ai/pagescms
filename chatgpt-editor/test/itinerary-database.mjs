@@ -30,9 +30,20 @@ try{
  const winner=results[0].status==='fulfilled'?first:second;
  await dbA.publish('alice',winner,before,{...before.content,title:'Ignored retry'},'Retry');
  assert.equal((await a.query('SELECT count(*)::int AS n FROM cms_proposal')).rows[0].n,1);
+ const dirtyBeforeCreate=(await a.query('SELECT dirty_at FROM cms_deploy_trigger')).rows[0].dirty_at.toISOString();
+ const createdId=crypto.randomUUID(),created={slug:'incheon-open-port',title:'Incheon Open Port',category:'tour',tag:null,tagColor:null,cover:null,published:false,body:'## New itinerary'};
+ await dbA.ensureAvailable('alice',created.slug);
+ const createdResult=await dbA.create('alice',createdId,created,'Create requested itinerary');
+ assert.equal(createdResult.affectsSite,false);assert.equal((await dbA.read('alice',created.slug)).content.title,created.title);
+ await dbA.create('alice',createdId,{...created,title:'Ignored retry'},'Retry');
+ assert.equal((await dbA.read('alice',created.slug)).content.title,created.title);
+ await assert.rejects(dbA.ensureAvailable('alice',created.slug),/already exists/);
+ await assert.rejects(dbA.create('alice',crypto.randomUUID(),{...created,title:'Duplicate'},'Duplicate'),error=>error.status===409);
+ assert.equal((await a.query('SELECT count(*)::int AS n FROM cms_proposal')).rows[0].n,2);
+ assert.equal((await a.query('SELECT dirty_at FROM cms_deploy_trigger')).rows[0].dirty_at.toISOString(),dirtyBeforeCreate);
  const fresh=await dbA.read('alice','seoul-tour');
  await assert.rejects(dbA.publish('viewer',crypto.randomUUID(),fresh,{...fresh.content,title:'Viewer cannot write'},'No'),/read-only/);
- assert.equal((await dbA.list('viewer','',0)).items.length,1);
+ assert.equal((await dbA.list('viewer','',0)).items.length,2);
  assert.equal((await dbA.list('viewer',"%' OR 1=1 --",0)).items.length,0);
  const collision=crypto.randomUUID();await a.query("INSERT INTO cms_proposal(id,kind,status) VALUES($1,'itinerary','draft')",[collision]);
  await assert.rejects(dbA.publish('alice',collision,fresh,{...fresh.content,title:'Must roll back'},'Failure'));
@@ -42,5 +53,5 @@ try{
  const current=await dbA.read('alice','seoul-tour');assert.equal(await contentRevision(current.content),current.revision);
  await a.query("UPDATE \"user\" SET role='viewer' WHERE id='alice-db'");
  await assert.rejects(dbA.publish('alice',crypto.randomUUID(),current,{...current.content,title:'Revoked'},'No'),/read-only/);
- console.log('PASS: PostgreSQL concurrent edits, atomic content/audit/deploy commit, retry idempotency, rollback, stale timestamps, role revocation, viewer reads and SQL injection resistance. Production database untouched.');
+ console.log('PASS: PostgreSQL concurrent edits and creation, atomic content/audit/deploy behavior, retry idempotency, rollback, stale timestamps, role revocation, viewer reads and SQL injection resistance. Production database untouched.');
 }finally{await a.end();await b.end();}
