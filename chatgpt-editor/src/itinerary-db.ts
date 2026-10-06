@@ -10,6 +10,7 @@ export interface ItineraryRepository {
   ensureAvailable(owner: string, slug: string): Promise<void>;
   create(owner: string, changeId: string, after: ItineraryContent, rationale: string): Promise<{ publishedAt: string; affectsSite: boolean }>;
   publish(owner: string, changeId: string, before: ItineraryRecord, after: ItineraryContent, rationale: string): Promise<{ publishedAt: string; affectsSite: boolean }>;
+  delete(owner: string, changeId: string, before: ItineraryRecord, rationale: string): Promise<{ publishedAt: string; affectsSite: boolean }>;
   published(owner: string, changeId: string): Promise<{ publishedAt: string; affectsSite: boolean } | null>;
 }
 function fromRow(row: any): ItineraryContent {
@@ -115,6 +116,30 @@ export class ItineraryDatabase implements ItineraryRepository {
       return { publishedAt: new Date(inserted.rows[0].published_at).toISOString(), affectsSite: after.published };
     } catch (error) { await this.sql.query("ROLLBACK").catch(() => {}); throw error; }
     finally { this.inTransaction = false; }
+  }
+  async delete(owner: string, changeId: string, before: ItineraryRecord, rationale: string) {
+    await this.sql.query("BEGIN");
+    this.inTransaction = true;
+    try {
+      await this.sql.query("SET LOCAL lock_timeout='5s'");
+      await this.sql.query("SET LOCAL statement_timeout='15s'");
+      const user=await this.authorize(owner,true);
+      const previous=await this.published(owner,changeId);
+      if(previous) { await this.sql.query("COMMIT"); return previous; }
+      const {rows}=await this.sql.query("SELECT * FROM public.cms_itinerary WHERE slug=$1 FOR UPDATE",[before.content.slug]);
+      if(!rows[0] || await contentRevision(fromRow(rows[0]))!==before.revision || new Date(rows[0].updated_at).toISOString()!==before.updatedAt)
+        fail("This itinerary changed in the CMS. Read it again and create a fresh deletion preview.",409);
+      await this.sql.query("DELETE FROM public.cms_itinerary WHERE slug=$1",[before.content.slug]);
+      const inserted=await this.sql.query(`INSERT INTO public.cms_proposal(id,kind,target,base_updated_at,status,published_at,published_by)
+        VALUES($1,'itinerary',$2,$3,'published',clock_timestamp(),$4) RETURNING published_at`,[changeId,before.content.slug,before.updatedAt,user]);
+      await this.sql.query(`INSERT INTO public.cms_proposal_version(proposal_id,version,content,rationale,author) VALUES
+        ($1,0,$2::jsonb,'Content before deletion','COZE CMS'),($1,1,$3::jsonb,$4,$5)`,
+        [changeId,JSON.stringify(before.content),JSON.stringify({slug:before.content.slug,deleted:true}),rationale,`ChatGPT:${owner}`]);
+      if(before.content.published) await this.sql.query(`INSERT INTO public.cms_deploy_trigger(id,triggered_at,dirty_at) VALUES(1,to_timestamp(0),clock_timestamp()) ON CONFLICT(id) DO UPDATE SET dirty_at=clock_timestamp()`);
+      await this.sql.query("COMMIT");
+      return {publishedAt:new Date(inserted.rows[0].published_at).toISOString(),affectsSite:before.content.published};
+    } catch(error) { await this.sql.query("ROLLBACK").catch(()=>{}); throw error; }
+    finally { this.inTransaction=false; }
   }
 }
 export async function withItineraryDatabase<T>(env: Env, work: (db: ItineraryDatabase) => Promise<T>) {

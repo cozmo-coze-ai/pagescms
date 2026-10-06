@@ -1,5 +1,11 @@
 # Itinerary extension — 2026-09-29
 
+## 0.4.4 source update
+
+The connected editor source now has preview-first permanent deletion: `getItinerary` → `prepareDeleteItineraryPreview` with the exact revision → `showItineraryPreview` → the requester explicitly confirms deletion → `publishItinerary` → `getItineraryChange`. The CMS row is removed in the same transaction as the immutable before/deletion audit and, for a previously published itinerary, the deploy marker. Stored photo objects are retained. A published deletion is `live` only after the public version manifest no longer lists the slug; an unpublished deletion is `deleted` immediately after the CMS commit. Create, read and update keep their prior paths. Admin/editor CMS roles may write; viewers may only read. Having the plugin installed alone never grants CMS access.
+
+Source verification passed TypeScript, unit/MCP tests, widget host simulation, OAuth/runtime regression, dry-run Worker build and disposable PostgreSQL integration. The local PostgreSQL container was stopped and automatically removed after the test; production records were untouched. A hosted release and real ChatGPT-client test must be verified separately. The itinerary preview still omits full-site navigation and is not pixel-identical; template redesign remains outside the current connector. The historical release notes below describe earlier shipped versions.
+
 ## Release and activation
 
 Existing plugin [COZE Homepage & Itinerary Editor](https://chatgpt.com/plugins/plugin_ce7a0f7893008191a2b49a669dea575d) is **0.4.0**. All seven downloaded release files match the submitted bundle, preserving its canonical identity, original icon, three starter prompts, app attachment and audience. The supported app-server save/read APIs completed the update; Plugin Creator's direct update tool was not available in this session. The save response does not expose a separate release ID.

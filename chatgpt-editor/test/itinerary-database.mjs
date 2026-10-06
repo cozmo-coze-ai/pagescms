@@ -53,5 +53,17 @@ try{
  const current=await dbA.read('alice','seoul-tour');assert.equal(await contentRevision(current.content),current.revision);
  await a.query("UPDATE \"user\" SET role='viewer' WHERE id='alice-db'");
  await assert.rejects(dbA.publish('alice',crypto.randomUUID(),current,{...current.content,title:'Revoked'},'No'),/read-only/);
- console.log('PASS: PostgreSQL concurrent edits and creation, atomic content/audit/deploy behavior, retry idempotency, rollback, stale timestamps, role revocation, viewer reads and SQL injection resistance. Production database untouched.');
+ await a.query("UPDATE \"user\" SET role='editor' WHERE id='alice-db'");
+ const unpublished=await dbA.read('alice',created.slug),unpublishedDelete=crypto.randomUUID();
+ const dirtyBeforeDelete=(await a.query('SELECT dirty_at FROM cms_deploy_trigger')).rows[0].dirty_at.toISOString();
+ assert.equal((await dbA.delete('alice',unpublishedDelete,unpublished,'Remove unused draft')).affectsSite,false);
+ await assert.rejects(dbA.read('alice',created.slug),/not found/);
+ assert.equal((await a.query('SELECT dirty_at FROM cms_deploy_trigger')).rows[0].dirty_at.toISOString(),dirtyBeforeDelete);
+ await dbA.delete('alice',unpublishedDelete,unpublished,'Retry without duplicate audit');
+ const published=await dbA.read('alice','seoul-tour'),publishedDelete=crypto.randomUUID();
+ assert.equal((await dbA.delete('alice',publishedDelete,published,'Remove public tour')).affectsSite,true);
+ await assert.rejects(dbA.read('alice','seoul-tour'),/not found/);
+ assert.equal((await a.query('SELECT dirty_at>triggered_at AS dirty FROM cms_deploy_trigger')).rows[0].dirty,true);
+ assert.equal((await a.query('SELECT content->>\'deleted\' AS deleted FROM cms_proposal_version WHERE proposal_id=$1 AND version=1',[publishedDelete])).rows[0].deleted,'true');
+ console.log('PASS: PostgreSQL concurrent edits, creation, deletion, atomic audit/deploy behavior, retry idempotency, rollback, stale timestamps, role revocation, viewer reads and SQL injection resistance. Production database untouched.');
 }finally{await a.end();await b.end();}

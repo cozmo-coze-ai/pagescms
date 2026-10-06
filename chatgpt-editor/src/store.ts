@@ -43,6 +43,7 @@ export class EditorStore extends DurableObject<Env> {
             case "itinerary:photo":return itinerary.photo(actor,input);
             case "itinerary:prepare":return itinerary.prepare(actor,input);
             case "itinerary:prepare-new":return itinerary.prepareNew(actor,input);
+            case "itinerary:prepare-delete":return itinerary.prepareDelete(actor,input);
             case "itinerary:status":return itinerary.status(actor,input.changeId);
             case "itinerary:show":return itinerary.status(actor,input.changeId,true);
             case "itinerary:viewed":return itinerary.viewed(actor,input.changeId,input.viewToken);
