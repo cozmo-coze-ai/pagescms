@@ -1,5 +1,11 @@
 # Itinerary extension — 2026-09-29
 
+## 0.4.5 source update
+
+Itinerary editors can search Wikimedia Commons and privately stage a selected JPG/PNG/WebP thumbnail through `searchCommonsItineraryPhotos` and `stageCommonsItineraryPhoto`; the requester need not download or attach it. The Worker accepts verified CC BY 4.0, CC BY-SA 4.0/3.0 or CC0 metadata with an artist and Commons source page, downloads only from Wikimedia thumbnail/upload hosts, and enforces a 2 MB/4000px limit. Artist, license, source and resize credit are added to the exact preview and saved content. Public content still requires that preview and the requester's explicit approval. This does not alter homepage photo handling or publish an itinerary by itself.
+
+The plugin release and hosted Worker must be verified separately from local tests. An installed ChatGPT app may need its tools refreshed before new actions appear; server deployment alone cannot force a client-side refresh.
+
 ## 0.4.4 source update
 
 The connected editor source now has preview-first permanent deletion: `getItinerary` → `prepareDeleteItineraryPreview` with the exact revision → `showItineraryPreview` → the requester explicitly confirms deletion → `publishItinerary` → `getItineraryChange`. The CMS row is removed in the same transaction as the immutable before/deletion audit and, for a previously published itinerary, the deploy marker. Stored photo objects are retained. A published deletion is `live` only after the public version manifest no longer lists the slug; an unpublished deletion is `deleted` immediately after the CMS commit. Create, read and update keep their prior paths. Admin/editor CMS roles may write; viewers may only read. Having the plugin installed alone never grants CMS access.

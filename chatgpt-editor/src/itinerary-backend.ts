@@ -3,14 +3,45 @@ import { type ItineraryRepository } from "./itinerary-db.ts";
 import { itineraryInput, newItineraryInput, contentRevision, validateContent, slugSchema, renderItinerary, bucket, mediaKey, mediaUrl, storageOrigin, legacyPhotoIssues, type ItineraryContent, type ItineraryRecord } from "./itinerary-model.ts";
 import { fail, PublicError, sha256, type Env, type Store } from "./types.ts";
 import { imageInfo, imageNameError } from "./vendor/homepage-guard.ts";
+import sanitizeHtml from "sanitize-html";
 
-type Photo = { id: string; owner: string; slug: string; key: string; mime: string; hash: string; expires: number };
+type Photo = { id: string; owner: string; slug: string; key: string; mime: string; hash: string; expires: number; credit?: string };
 type Draft = { id: string; owner: string; slug: string; revision: string; rationale: string; created: number; expires: number;
   operation?: "create" | "update" | "delete";
   state: "ready" | "publishing" | "published"; token: string; viewed: boolean; photos: Photo[]; summary: unknown;
   publishedAt?: string; affectsSite?: boolean; error?: string };
 export type VersionManifest = { version: 1; fetchedAt: string; entries: Record<string,string> };
 export const photoInput = z.object({ slug: slugSchema, filename: z.string().max(150), downloadUrl: z.string().url(), forNewItinerary: z.boolean().default(false) }).strict();
+export const commonsSearchInput = z.object({ query: z.string().trim().min(3).max(100) }).strict();
+export const commonsPhotoInput = z.object({ slug: slugSchema, title: z.string().trim().min(6).max(250), forNewItinerary: z.boolean().default(false) }).strict();
+const commonsAgent = "COZEItineraryEditor/0.4 (https://www.coze.care)";
+const commonsLicenses: Record<string,string> = {
+  "CC BY 4.0":"https://creativecommons.org/licenses/by/4.0/",
+  "CC BY-SA 4.0":"https://creativecommons.org/licenses/by-sa/4.0/",
+  "CC BY-SA 3.0":"https://creativecommons.org/licenses/by-sa/3.0/",
+  "CC0":"https://creativecommons.org/publicdomain/zero/1.0/",
+};
+function plainCredit(value: string) {
+  return sanitizeHtml(value,{allowedTags:[],allowedAttributes:{}}).replace(/&(?:amp|lt|gt|quot|#39);/g,entity=>({"&amp;":"&","&lt;":"<","&gt;":">","&quot;":"\"","&#39;":"'"})[entity] ?? entity)
+    .replace(/[\[\]()*_`<>\\]/g," ").replace(/\s+/g," ").trim().slice(0,180);
+}
+async function commonsInfo(titles: string) {
+  const url=new URL("https://commons.wikimedia.org/w/api.php");
+  url.search=new URLSearchParams({action:"query",format:"json",prop:"imageinfo",iiprop:"url|extmetadata|size",iiurlwidth:"1200",titles}).toString();
+  const response=await fetch(url,{headers:{"User-Agent":commonsAgent},redirect:"manual",signal:AbortSignal.timeout(15_000)});
+  if(!response.ok || Number(response.headers.get("content-length")||0)>200_000) fail("Wikimedia Commons is unavailable. Try again later.",503);
+  const raw=await response.text(); if(raw.length>200_000) fail("Commons returned too much metadata.",503);
+  const pages=Object.values((JSON.parse(raw) as any).query?.pages??{}) as any[];
+  return pages.filter(p=>p.imageinfo?.[0]).map(p=>({title:p.title,info:p.imageinfo[0]}));
+}
+function commonsDetails(title:string,info:any) {
+  const license=info.extmetadata?.LicenseShortName?.value;
+  if(typeof license!=="string" || !commonsLicenses[license]) return null;
+  const artist=plainCredit(info.extmetadata?.Artist?.value??"");
+  const source=info.descriptionurl;
+  if(!artist || typeof source!=="string" || !source.startsWith("https://commons.wikimedia.org/wiki/File:")) return null;
+  return {title,artist,license,licenseUrl:commonsLicenses[license],source};
+}
 
 export async function liveVersions(): Promise<VersionManifest | null> {
   try {
@@ -44,7 +75,7 @@ export class ItineraryBackend {
     return { ...item, url: `https://www.coze.care/itineraries/${slug}/`, existingPhotoIssues:legacyPhotoIssues(item.content.body).length,
       rules: { addressLocked: true, bodyFormat: "Markdown", noInventedFacts: true,
         publication: "Prepare changes, show the content preview, ask the requester to publish this exact change, then wait for yes.",
-        photos: "Use existing /itineraries/slug/file paths. To add a photo, call uploadItineraryPhoto with the attached file, then use its photoRef in changes.cover or ![alt](photoRef) in changes.body." } };
+        photos: "Use existing /itineraries/slug/file paths. For licensed Wikimedia Commons photos, searchCommonsItineraryPhotos then stageCommonsItineraryPhoto; no user attachment is needed and credits are added automatically. Or call uploadItineraryPhoto with an attachment. Use photoRef in changes.cover or ![alt](photoRef) in changes.body." } };
   }
   private async budget(owner: string) {
     const key = `itinerary-budget:${owner}`;
@@ -84,6 +115,47 @@ export class ItineraryBackend {
     const revision = await contentRevision(after); if (revision === before.revision) fail("There is no change to preview.");
     return this.saveDraft(owner, "update", after, revision, input.rationale, photos, before);
   }
+  async searchCommons(owner:string,raw:unknown) {
+    await this.db.authorize(owner);
+    const {query}=commonsSearchInput.parse(raw);
+    const url=new URL("https://commons.wikimedia.org/w/api.php");
+    url.search=new URLSearchParams({action:"query",format:"json",generator:"search",gsrsearch:`filetype:bitmap ${query}`,gsrnamespace:"6",gsrlimit:"12",prop:"imageinfo",iiprop:"url|extmetadata|size",iiurlwidth:"1200"}).toString();
+    const response=await fetch(url,{headers:{"User-Agent":commonsAgent},redirect:"manual",signal:AbortSignal.timeout(15_000)});
+    if(!response.ok || Number(response.headers.get("content-length")||0)>500_000) fail("Wikimedia Commons search is unavailable.",503);
+    const rawText=await response.text();if(rawText.length>500_000) fail("Commons returned too many results.",503);
+    const pages=Object.values((JSON.parse(rawText) as any).query?.pages??{}) as any[];
+    const items=pages.map(p=>p.imageinfo?.[0]&&commonsDetails(p.title,p.imageinfo[0])).filter(Boolean);
+    return {items,next:"Select a relevant image by title, then call stageCommonsItineraryPhoto. Verify the image depicts the intended location before using it."};
+  }
+  async commonsPhoto(owner:string,raw:unknown) {
+    await this.db.authorize(owner,true);
+    const input=commonsPhotoInput.parse(raw);
+    if(input.forNewItinerary) await this.db.ensureAvailable(owner,input.slug); else await this.db.read(owner,input.slug);
+    if(!/^File:[^#?]+\.(?:jpe?g|png|webp)$/i.test(input.title)) fail("Choose a Commons JPG, PNG or WebP file title.");
+    const matches=await commonsInfo(input.title);
+    const match=matches.find(p=>p.title.replaceAll("_"," ").toLowerCase()===input.title.replaceAll("_"," ").toLowerCase());
+    if(!match) fail("That Commons file could not be verified.");
+    const details=commonsDetails(match.title,match.info);
+    if(!details) fail("This image needs a verified artist and a supported Creative Commons license.");
+    const candidate=match.info.thumburl;
+    if(typeof candidate!=="string") fail("No Commons thumbnail is available.");
+    const url=new URL(candidate);
+    if(url.protocol!=="https:" || url.username || url.password || !["thumb.wikimedia.org","upload.wikimedia.org"].includes(url.hostname)) fail("Commons returned an unexpected image host.");
+    await this.budget(owner);
+    const response=await fetch(url,{headers:{"User-Agent":commonsAgent},redirect:"manual",signal:AbortSignal.timeout(20_000)});
+    if(!response.ok || !response.body || Number(response.headers.get("content-length")||0)>2_000_000) fail("The Commons thumbnail could not be loaded under 2 MB.");
+    const reader=response.body.getReader();const chunks:Uint8Array[]=[];let size=0;
+    for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>2_000_000){await reader.cancel();fail("The Commons thumbnail is over 2 MB.");}chunks.push(value);}
+    const bytes=Buffer.concat(chunks);const info=imageInfo(bytes);
+    if(!info || info.width<1 || info.height<1 || info.width>4000 || info.height>4000) fail("Commons did not provide a supported image.");
+    const filename=`commons-${(await sha256(match.title)).slice(0,16)}.${info.type==="jpeg"?"jpg":info.type}`;
+    const hash=await sha256(bytes),id=crypto.randomUUID();
+    const credit=`${details.artist} · [${details.license}](${details.licenseUrl}) · [Wikimedia Commons](${details.source}) (Commons thumbnail, resized)`;
+    const photo:Photo={id,owner,slug:input.slug,key:`${input.slug}/chatgpt-${hash.slice(0,24)}-${filename}`,mime:`image/${info.type}`,hash,expires:Date.now()+86400_000,credit};
+    await this.env.OAUTH_KV.put(`itinerary-photo:${id}`,bytes,{expirationTtl:172800});
+    await this.store.put(`itinerary-photo:${id}`,photo);
+    return {photoRef:`@photo:${id}`,source:details.source,artist:details.artist,license:details.license,state:"private_draft",next:"Use photoRef in the preview. Credit is added automatically. No public content was changed."};
+  }
   async prepareNew(owner: string, raw: unknown) {
     await this.db.authorize(owner,true);
     const parsed = newItineraryInput.parse(raw);
@@ -114,6 +186,8 @@ export class ItineraryBackend {
       after.body = after.body.split(ref).join(`/itineraries/${photo.key}`);
     }
     if (photos.length > 5) fail("Use up to five new photos in one change.");
+    const credits=photos.filter(p=>p.credit).map(p=>`- ${p.credit}`);
+    if(credits.length) after.body+=`\n\n## Photo credits\n\n${credits.join("\n")}\n`;
     return photos;
   }
   private async saveDraft(owner:string,operation:"create"|"update"|"delete",after:ItineraryContent,revision:string,rationale:string,photos:Photo[],before?:ItineraryRecord) {

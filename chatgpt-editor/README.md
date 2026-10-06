@@ -2,7 +2,7 @@
 
 One Cloudflare MCP/OAuth connection for homepage design and CMS itinerary creation/editing. The requester sees the exact preview and confirms publication. No separate admin reviewer.
 
-**Current source: plugin 0.4.4.** It adds preview-first permanent itinerary deletion to the existing create/edit/publication flow. Check the workspace plugin metadata for its installed release; source changes alone do not update installed copies. Full details, limitations, tests and rollback: [Itinerary extension](docs/ITINERARY_EDITOR.md).
+**Current source: plugin 0.4.5.** It adds licensed Wikimedia Commons photo search and private staging without user attachments, with automatic photo credits in the itinerary preview. Preview-first create/edit/delete/publication remains unchanged. Check the workspace plugin metadata for its installed release; source changes alone do not update installed copies. Full details, limitations, tests and rollback: [Itinerary extension](docs/ITINERARY_EDITOR.md).
 
 Canonical source and complete plugin bundle: [`cozmo-coze-ai/pagescms/main/chatgpt-editor`](https://github.com/cozmo-coze-ai/pagescms/tree/main/chatgpt-editor). This directory is an independent npm project deployed to the existing `coze-homepage-editor` Worker. The CMS at the repository root deploys separately to `coze-cms`. Both use Cloudflare Git builds; runtime secrets and the existing OAuth endpoint stay unchanged. The original `coze_cms/feature/itinerary-plugin` branch is a historical backup. See [deployment and activation](../docs/CHATGPT_EDITOR_HANDOFF.md).
 

@@ -5,6 +5,7 @@ import { proposalSchema } from "./backend.ts";
 import { PublicError } from "./types.ts";
 import { boundedText } from "./http.ts";
 import { itineraryInput, newItineraryInput, slugSchema } from "./itinerary-model.ts";
+import { commonsPhotoInput, commonsSearchInput } from "./itinerary-backend.ts";
 
 export type Rpc = (method: string, input?: unknown) => Promise<any>;
 const previewResource = "ui://coze/homepage-preview/v1.html";
@@ -61,7 +62,7 @@ export function createServer(rpc: Rpc, canWrite: boolean, widget: string, frameD
     const itineraryTool = (name: string, description: string, schema: z.ZodRawShape, method: string, write=false, extra: Record<string,unknown>={}) => {
       const scopes=write?["itineraries:read","itineraries:write"]:["itineraries:read"];
       server.registerTool(name, {title:name,description,inputSchema:schema,
-        annotations:{readOnlyHint:!write,destructiveHint:name==="publishItinerary" || name==="prepareDeleteItineraryPreview",idempotentHint:name!=="uploadItineraryPhoto",openWorldHint:true},
+        annotations:{readOnlyHint:!write,destructiveHint:name==="publishItinerary" || name==="prepareDeleteItineraryPreview",idempotentHint:!(["uploadItineraryPhoto","stageCommonsItineraryPhoto"].includes(name)),openWorldHint:true},
         _meta:{securitySchemes:[{type:"oauth2",scopes}],...extra}},async input=>{
         if (scopes.some(s=>!itineraries.scopes.includes(s))) return {isError:true,content:[{type:"text",text:"Reconnect COZE to allow itinerary access. Your current homepage connection still works."}],
           _meta:{"mcp/www_authenticate":[`Bearer error="insufficient_scope", error_description="COZE itinerary access needs additional permission", scope="${scopes.join(' ')}", resource_metadata="${itineraries.resourceMetadata}"`]}};
@@ -74,6 +75,8 @@ export function createServer(rpc: Rpc, canWrite: boolean, widget: string, frameD
     };
     itineraryTool("listItineraries","Find existing CMS itineraries by title or address. Read-only; follow nextOffset to see all items.",{search:z.string().max(100).default(""),offset:z.number().int().min(0).max(10000).default(0)},"itinerary:list");
     itineraryTool("getItinerary","Read an itinerary's exact Markdown content, publication state, revision and editing rules before any change.",{slug:slugSchema},"itinerary:read");
+    itineraryTool("searchCommonsItineraryPhotos","Search Wikimedia Commons for licensed itinerary photos. Returns file titles, artists, licenses and source pages; no content changes. Inspect relevance before staging.",commonsSearchInput.shape,"itinerary:commons-search");
+    itineraryTool("stageCommonsItineraryPhoto","Download one verified CC BY, CC BY-SA or CC0 Commons photo as a private itinerary draft; no attachment needed. Credits are added automatically when its photoRef is used in a preview. Set forNewItinerary for an unused address. Nothing becomes public until the exact preview is approved.",commonsPhotoInput.shape,"itinerary:commons-photo",true);
     itineraryTool("uploadItineraryPhoto","Stage one attached JPG/PNG/WebP privately for an itinerary preview. Set forNewItinerary true when preparing a new address. Does not change public content. Under 2 MB, at most 4000px.",
       {slug:slugSchema,filename:z.string().max(150),forNewItinerary:z.boolean().default(false),imageFiles:previewInput.shape.imageFiles.removeDefault().min(1).max(1)},"itinerary:photo",true,{"openai/fileParams":["imageFiles"]});
     itineraryTool("prepareItineraryPreview","Prepare only the requested field changes against the exact current revision. Keeps omitted fields unchanged. Addresses are locked; published:false hides content only after confirmation. Use Markdown for body. Never invent prices, dates, offers or facts. Creates a private content preview immediately; does not publish.",itineraryInput.shape,"itinerary:prepare",true);

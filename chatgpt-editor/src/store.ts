@@ -40,7 +40,9 @@ export class EditorStore extends DurableObject<Env> {
           switch(method) {
             case "itinerary:list":return itinerary.list(actor,input);
             case "itinerary:read":return itinerary.read(actor,input.slug);
-            case "itinerary:photo":return itinerary.photo(actor,input);
+              case "itinerary:photo":return itinerary.photo(actor,input);
+              case "itinerary:commons-search":return itinerary.searchCommons(actor,input);
+              case "itinerary:commons-photo":return itinerary.commonsPhoto(actor,input);
             case "itinerary:prepare":return itinerary.prepare(actor,input);
             case "itinerary:prepare-new":return itinerary.prepareNew(actor,input);
             case "itinerary:prepare-delete":return itinerary.prepareDelete(actor,input);

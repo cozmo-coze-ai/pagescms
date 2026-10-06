@@ -140,6 +140,34 @@ test("photos stay private until the exact preview is confirmed and cannot cross 
     assert.ok(newHtml.includes(`/itinerary-preview/${newDraft.changeId}/`));assert.equal(publicWrites,1);
   }finally{globalThis.fetch=original;}
 });
+test("Commons photos download privately, require a verified license, and add credits to the exact preview",async()=>{
+  const s=await setup();const original=globalThis.fetch;
+  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a0WEAAAAASUVORK5CYII=','base64');
+  const title='File:Incheon test photo.png';
+  const info={thumburl:'https://thumb.wikimedia.org/wikipedia/commons/thumb/test.png',descriptionurl:'https://commons.wikimedia.org/wiki/File:Incheon_test_photo.png',extmetadata:{LicenseShortName:{value:'CC BY-SA 4.0'},Artist:{value:'<a href="/wiki/User:Artist">Test Artist</a>'}}};
+  globalThis.fetch=async(input)=>{
+    const url=String(input);
+    if(url.startsWith('https://commons.wikimedia.org/'))return Response.json({query:{pages:{1:{title,imageinfo:[info]}}}});
+    if(url.startsWith('https://thumb.wikimedia.org/'))return new Response(png);
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+  try {
+    const search:any=await s.backend.searchCommons('alice',{query:'Incheon test photo'});
+    assert.equal(search.items[0].artist,'Test Artist');
+    const staged=await s.backend.commonsPhoto('alice',{slug:content.slug,title});
+    assert.equal(staged.state,'private_draft');assert.equal(s.writes(),0);
+    const draft=await s.backend.prepare('alice',{slug:content.slug,expectedRevision:s.current().revision,changes:{cover:staged.photoRef,body:`![Incheon view](${staged.photoRef})`},rationale:'Add Commons photo'});
+    const after:any=await s.store.get(`itinerary-after:${draft.changeId}`);
+    assert.match(after.body,/## Photo credits/);assert.match(after.body,/Test Artist/);assert.match(after.body,/creativecommons.org\/licenses\/by-sa\/4.0/);
+    const shown:any=await s.backend.status('alice',draft.changeId,true);
+    assert.match(await (await s.backend.preview(draft.changeId,shown._viewToken)).text(),/Photo credits/);
+    await assert.rejects(s.backend.publish('alice',draft.changeId,true),/preview/);
+    info.extmetadata.LicenseShortName.value='All rights reserved';
+    await assert.rejects(s.backend.commonsPhoto('alice',{slug:content.slug,title}),/verified artist/);
+    info.extmetadata.LicenseShortName.value='CC BY-SA 4.0';info.thumburl='https://evil.example/photo.png';
+    await assert.rejects(s.backend.commonsPhoto('alice',{slug:content.slug,title}),/unexpected image host/);
+  } finally {globalThis.fetch=original;}
+});
 
 test("old broken images are flagged and preserved without permitting new broken references",()=>{
   const broken='![Original photo](/itineraries/blob:https:/cms.coze.care/old-photo)';
@@ -173,6 +201,8 @@ test("itinerary tools require their own scopes and literal confirmation, leaving
   const list=await call('tools/list');assert.ok(list.result.tools.some((t:any)=>t.name==='getHomepage'));assert.ok(list.result.tools.some((t:any)=>t.name==='getItinerary'));
   assert.ok(list.result.tools.some((t:any)=>t.name==='prepareNewItineraryPreview'));
   assert.ok(list.result.tools.some((t:any)=>t.name==='prepareDeleteItineraryPreview'));
+  assert.ok(list.result.tools.some((t:any)=>t.name==='searchCommonsItineraryPhotos'));
+  assert.ok(list.result.tools.some((t:any)=>t.name==='stageCommonsItineraryPhoto'));
   const denied=await call('tools/call',{name:'getItinerary',arguments:{slug:content.slug}});assert.equal(denied.result.isError,true);assert.match(denied.result._meta['mcp/www_authenticate'][0],/error_description="COZE itinerary access needs additional permission"/);assert.equal(calls.length,0);
   const allowed=await call('tools/call',{name:'getItinerary',arguments:{slug:content.slug}},['itineraries:read']);assert.equal(allowed.result.isError,undefined);assert.deepEqual(calls,['itinerary:read']);
   const invalid=await call('tools/call',{name:'publishItinerary',arguments:{changeId:crypto.randomUUID(),confirmedByUser:false}},['itineraries:read','itineraries:write']);assert.ok(invalid.error||invalid.result.isError);assert.equal(calls.length,1);

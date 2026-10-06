@@ -18,7 +18,7 @@
     "shortDescription": "Edit COZE site content"
   },
   "name": "gpt-96a7a163626e05f4185de181791ba82a",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Edit the COZE homepage and create, edit or delete itineraries, preview, then confirm publishing.",
   "author": {
     "name": "Nishat"
