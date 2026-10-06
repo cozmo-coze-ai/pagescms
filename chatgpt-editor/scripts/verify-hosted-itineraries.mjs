@@ -30,6 +30,13 @@ try{
  const browser=await chromium.launch({channel:'msedge',headless:true});await mkdir('test-results',{recursive:true});
  try{for(const width of [320,390,1440]){const page=await browser.newPage({viewport:{width,height:950}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(shown._meta.previewUrl,{waitUntil:'load'});await page.getByRole('heading',{name:title,exact:true}).waitFor();assert.equal(await page.locator('body').evaluate(el=>el.scrollWidth<=innerWidth),true);assert.deepEqual(errors,[]);await page.screenshot({path:`test-results/hosted-itinerary-${width}.png`});await page.close();}}finally{await browser.close();}
  const collisionCheck=(await tool('listItineraries',{search:slug})).structuredContent;assert.equal(collisionCheck.items.length,0);
- const report={authenticated:true,homepageCommit:home.commit,itineraryCount:all.length,profile,tools,changeId:prepared.changeId,operation:'create',previewMs,privatePreview:true,mobileWidths:[320,390,1440],productionContentUnchanged:true,cmsRowCreated:false,published:false};
+ const commonsSearch=(await tool('searchCommonsItineraryPhotos',{query:'Jajangmyeon Museum Incheon'})).structuredContent;
+ assert.ok(commonsSearch.items.length>0);
+ const staged=(await tool('stageCommonsItineraryPhoto',{slug,title:'File:Jajangmyeon Museum 20230430 001.jpg',forNewItinerary:true})).structuredContent;
+ assert.equal(staged.state,'private_draft');assert.equal(staged.license,'CC BY-SA 4.0');
+ const photoDraft=(await tool('prepareNewItineraryPreview',{slug,title,category:'tour',tag:'Private test',tagColor:'gray',cover:staged.photoRef,body:`## Private photo preview\n\n![Jajangmyeon Museum](${staged.photoRef})`,rationale:'Verify Commons photo staging and private attribution only. Do not publish.'})).structuredContent;
+ const photoShown=await tool('showItineraryPreview',{changeId:photoDraft.changeId});
+ const photoHtml=await (await request(photoShown._meta.previewUrl)).text();assert.match(photoHtml,/Photo credits/);assert.match(photoHtml,/Mobius6/);
+ const report={authenticated:true,homepageCommit:home.commit,itineraryCount:all.length,profile,tools,changeId:prepared.changeId,operation:'create',previewMs,privatePreview:true,commonsSearch:true,commonsPhotoStaged:true,commonsCredited:true,mobileWidths:[320,390,1440],productionContentUnchanged:true,cmsRowCreated:false,published:false};
  await mkdir('generated',{recursive:true});await writeFile('generated/hosted-itinerary-check.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 }finally{if(metadata.revocation_endpoint&&new URL(metadata.revocation_endpoint).origin===origin)await request(metadata.revocation_endpoint,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:client.client_id,token:tokens.refresh_token||tokens.access_token}).toString()});}
