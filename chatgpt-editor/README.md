@@ -1,8 +1,12 @@
-# COZE Homepage & Itinerary Editor
+# COZE Content Editor
 
-One Cloudflare MCP/OAuth connection for homepage design and CMS itinerary creation/editing. The requester sees the exact preview and confirms publication. No separate admin reviewer.
+One Cloudflare MCP/OAuth connection for approved public-site UI design and CMS itinerary creation/editing. The requester sees an isolated preview of a selected public route and confirms publication. No separate admin reviewer.
 
-**Current source release: plugin 0.4.2.** It adds preview-first creation at a unique itinerary address while preserving the same approval, audit and deployment checks used for edits. ChatGPT still needs the existing app's **Refresh tools** and consent to the itinerary scopes; its latest metadata read showed the old homepage tools. Full details, limitations, tests and rollback: [Itinerary extension](docs/ITINERARY_EDITOR.md).
+**Current local source version: plugin 0.5.1 (not deployed).** The general UI tools validate edits to approved public pages and shared header/footer: existing About, Life/Explore, Experiences, itinerary layout/listings, plus selected presentation styles and Git-owned copy. Stay, bookings, community and guest manuals are out of scope. React logic, server-side Astro frontmatter, scripts, API routes, data access, payment logic and CMS itinerary data stay locked. The same connected app needs refreshed tools and user consent to `pages:read` and `pages:write`; existing homepage and itinerary scopes remain separate. Only routes generated as static HTML can be previewed through the general UI tool. Full itinerary details: [Itinerary extension](docs/ITINERARY_EDITOR.md).
+
+The public `coze_client` source must also include the companion `src/i18n/cms.ts` change that makes the Git-managed Explore and About us dictionaries authoritative; otherwise stale CMS rows could hide successful edits. Release both repositories together. This source update has not pushed either repository, deployed the Worker, refreshed the ChatGPT app, or changed the live site.
+
+The isolated preview build trigger currently pins an older immutable packager hash. Releasing this version requires deploying the updated editor Worker **and updating that existing trigger's build command** to the value in `generated/preview-trigger.json`; otherwise the new UI previews cannot build. Keep the same preview Worker, branch, OAuth app and production bindings. The general UI preview includes only approved static HTML pages carrying the exact commit marker. CMS-owned copy on other pages remains outside the Git UI editor.
 
 Canonical source and complete plugin bundle: [`cozmo-coze-ai/pagescms/main/chatgpt-editor`](https://github.com/cozmo-coze-ai/pagescms/tree/main/chatgpt-editor). This directory is an independent npm project deployed to the existing `coze-homepage-editor` Worker. The CMS at the repository root deploys separately to `coze-cms`. Both use Cloudflare Git builds; runtime secrets and the existing OAuth endpoint stay unchanged. The original `coze_cms/feature/itinerary-plugin` branch is a historical backup. See [deployment and activation](../docs/CHATGPT_EDITOR_HANDOFF.md).
 
@@ -42,7 +46,7 @@ Describe a homepage change in ChatGPT → build an isolated actual preview → i
 
 `prepareHomepagePreview` validates an exact base commit and creates a preview branch; it does not update main. `publishHomepage` advances main only to that same preview commit, after a verified preview-load acknowledgement and `confirmedByUser: true`. The server cannot read the user's conversation: the connected ChatGPT skill must obtain explicit confirmation; the boolean is not independent proof of user consent. Changes after the preview invalidate publication. Unknown, failed and merely deployed states never imply live.
 
-The renderer uses the MCP Apps bridge, a bundled component and an isolated static Worker. Only its four homepages and static assets are served. Booking/API requests, forms and background API calls are blocked; no production Worker bindings are copied. A verified origin + exact commit message acknowledges that the page loaded; an iframe `load` event alone is insufficient. This does not assert that a human inspected every pixel.
+The renderer uses the MCP Apps bridge, a bundled component and an isolated static Worker. Static non-manual public pages and assets carrying the exact build commit are served; manuals, booking/API requests, forms and background API calls are blocked. No production Worker bindings are copied. A verified origin + exact commit message acknowledges that the page loaded; an iframe `load` event alone is insufficient. This does not assert that a human inspected every pixel.
 
 ## Local checks
 

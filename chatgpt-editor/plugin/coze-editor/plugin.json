@@ -1,7 +1,7 @@
 {
   "name": "gpt-96a7a163626e05f4185de181791ba82a",
-  "version": "0.4.5",
-  "description": "Edit the COZE homepage and create, edit or delete itineraries, preview, then confirm publishing.",
+  "version": "0.5.1",
+  "description": "Edit approved COZE public UI and CMS itineraries with preview-first publishing; operational pages and backend logic stay locked.",
   "author": {
     "name": "Nishat"
   },
@@ -21,10 +21,10 @@
           "Replace a supported homepage photo with my attachment."
         ],
         "developerName": "Nishat",
-        "displayName": "COZE Homepage & Itinerary Editor",
+        "displayName": "COZE Website Editor",
         "logo": "./assets/gpt-icon.png",
-        "longDescription": "Edit the homepage layout, four-language copy and supported photos, or create, edit and delete CMS itineraries. See a preview in chat, then confirm the exact change before applying it. Uses the same connected COZE app.",
-        "shortDescription": "Edit COZE site content"
+        "longDescription": "Redesign the COZE homepage, About, Life/Explore, Experiences, itinerary pages and shared header/footer. Create, edit or hide CMS itineraries while keeping their records. Preview in chat and confirm before publishing. Stay, bookings, community, manuals and backend logic stay locked.",
+        "shortDescription": "Edit COZE website UI"
       }
     }
   }

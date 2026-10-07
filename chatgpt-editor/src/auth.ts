@@ -54,10 +54,10 @@ export async function authorize(request: Request, env: Env) {
         : `<label>Your personal connection key<input name="key" type="password" autocomplete="off" required maxlength="200"></label>`;
       const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connect COZE</title>
       <style>body{font:16px system-ui;background:#f8f7f2;color:#173d35;margin:0;padding:24px}main{max-width:420px;margin:8vh auto}h1{font-size:28px}input,button{box-sizing:border-box;width:100%;padding:14px;border:1px solid #aab6ad;border-radius:10px;margin:8px 0;font:inherit}button{background:#173d35;color:white;cursor:pointer}.secondary{background:transparent;color:#173d35}small{overflow-wrap:anywhere;display:block;margin:16px 0}</style></head><body><main>
-      <h1>Connect your COZE content editor</h1><p>Edit the homepage and itineraries. Preview changes in chat. Publish only when you say yes.</p>
+      <h1>Connect your COZE content editor</h1><p>Edit public-site UI and itineraries. Preview changes in chat. Publish only when you say yes.</p>
       <p>Connect to <strong>${escape(details.clientName)}</strong>.</p><small>${details.clientDomain ? `Client: ${escape(details.clientDomain)}. ` : "Client name is self-reported. "}Access returns to ${escape(details.redirectHost)}.${details.redirectIsLoopback ? " This connects an app on your computer." : ""}</small>
       <form method="post"><input type="hidden" name="handle" value="${escape(consent.handle)}">${keyControl}
-      <small>Permissions: ${details.scope.map(escape).join(", ")}. Homepage design and CMS itineraries only.${remembered ? "" : " Use your existing personal COZE connection key. This browser will remember your sign-in for seven days."}</small>
+      <small>Permissions: ${details.scope.map(escape).join(", ")}. Public-site UI and CMS itineraries only; backend and operations are excluded.${remembered ? "" : " Use your existing personal COZE connection key. This browser will remember your sign-in for seven days."}</small>
       <button name="decision" value="approve">${remembered ? "Continue" : "Connect"}</button><button class="secondary" name="decision" value="deny" formnovalidate>Cancel</button></form></main></body></html>`;
       return new Response(html, { headers: consent.headers });
     }
@@ -78,7 +78,7 @@ export async function authorize(request: Request, env: Env) {
     const approved = await env.OAUTH_PROVIDER.approveConsent(request, handle);
     if (session && session.clientId !== approved.request.clientId) throw new PublicError("This browser sign-in belongs to another connection. Start again and enter your COZE key.", 403);
     if(approved.request.scope.some(s=>s.startsWith("itineraries:")) && !cmsUser(env,user.id)) throw new PublicError("Your connection is not enabled for CMS itineraries. Ask the COZE owner to grant access.",403);
-    const granted = approved.request.scope.filter(s => ["homepage:read", "homepage:write", "itineraries:read", "itineraries:write", "offline_access"].includes(s));
+    const granted = approved.request.scope.filter(s => ["homepage:read", "homepage:write", "pages:read", "pages:write", "itineraries:read", "itineraries:write", "offline_access"].includes(s));
     const { redirectTo } = await env.OAUTH_PROVIDER.completeAuthorization({ request: approved.request, userId: user.id, metadata: { name: user.name }, scope: granted, props: { userId: user.id } });
     approved.headers.set("Location", redirectTo);
     if (key) {

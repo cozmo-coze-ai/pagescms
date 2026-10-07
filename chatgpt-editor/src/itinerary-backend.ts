@@ -168,14 +168,10 @@ export class ItineraryBackend {
     return this.saveDraft(owner,"create",after,revision,rationale,photos);
   }
   async prepareDelete(owner: string, raw: unknown) {
-    await this.db.authorize(owner,true);
     const input = z.object({ slug:slugSchema, expectedRevision:z.string().regex(/^[a-f0-9]{64}$/), rationale:z.string().trim().min(3).max(1000) }).strict().parse(raw);
-    const before=await this.db.read(owner,input.slug);
-    if(input.expectedRevision!==before.revision) fail("The itinerary changed. Read it again before preparing a deletion preview.",409);
-    // Retain the old content only for the private preview and audit trail. The
-    // confirmed operation removes the CMS row; photos remain in storage.
-    const after={...before.content,published:false};
-    return this.saveDraft(owner,"delete",after,await contentRevision(after),input.rationale,[],before);
+    // "Delete" is a reversible unpublish action. Keep the CMS record and its
+    // audit history; existing ChatGPT tool names remain stable for connections.
+    return this.prepare(owner,{...input,changes:{published:false}});
   }
   private async resolvePhotos(owner: string, after: ItineraryContent) {
     const photos: Photo[] = [];
@@ -208,6 +204,7 @@ export class ItineraryBackend {
     z.string().uuid().parse(id); await this.db.authorize(owner);
     const draft = await this.store.get<Draft>(`itinerary:${id}`);
     if (!draft || draft.owner !== owner) fail("Change not found for this editor.",404);
+    if (draft.operation === "delete") fail("This old permanent-deletion preview is no longer valid. Read the itinerary and prepare a new hide preview.",409);
     return draft;
   }
   private async content(draft: Draft) {
@@ -225,23 +222,16 @@ export class ItineraryBackend {
       const expired = draft.expires < Date.now();
       return { changeId:id,kind:"itinerary",state:expired?"expired":draft.error?"needs_attention":draft.state,revision:draft.revision,summary:draft.summary,...(draft.error?{message:draft.error}:{}),
         ...(exposePreview && !expired ? { _previewUrl: `${this.env.PUBLIC_ORIGIN}/itinerary-preview/${id}?token=${draft.token}`, _viewToken: draft.token } : {}),
-        next:expired?"Read the itinerary and prepare a fresh preview.":draft.operation==="delete"?"Call showItineraryPreview. After it loads, ask: Delete this itinerary from the CMS and www.coze.care?":"Call showItineraryPreview. After the preview loads, ask: Publish this itinerary change to www.coze.care?" };
+        next:expired?"Read the itinerary and prepare a fresh preview.":"Call showItineraryPreview. After the preview loads, ask for explicit approval of the exact change before publishing." };
     }
     const after = await this.content(draft);
-    if(draft.operation==="delete") {
-      try { await this.db.read(owner,draft.slug); return {changeId:id,kind:"itinerary",state:"superseded",message:"An itinerary exists at this address again. Check it before making another change."}; }
-      catch(error) { if(!(error instanceof PublicError) || error.status!==404) throw error; }
-    } else {
-      const current=await this.db.read(owner,draft.slug);
-      if(current.revision!==draft.revision) return {changeId:id,kind:"itinerary",state:"superseded",message:"A newer CMS edit replaced this saved version. Read it before editing again."};
-    }
-    if (!draft.affectsSite) return draft.operation==="delete"
-      ? {changeId:id,kind:"itinerary",state:"deleted",message:"The unpublished itinerary was removed from the CMS. It was never on the website."}
-      : {changeId:id,kind:"itinerary",state:"saved_draft",message:"Saved in CMS as an unpublished draft. It is not on the website."};
+    const current=await this.db.read(owner,draft.slug);
+    if(current.revision!==draft.revision) return {changeId:id,kind:"itinerary",state:"superseded",message:"A newer CMS edit replaced this saved version. Read it before editing again."};
+    if (!draft.affectsSite) return {changeId:id,kind:"itinerary",state:"saved_draft",message:"Saved in CMS as an unpublished draft. It is not on the website."};
     const manifest = await this.live();
     const match = manifest && Date.parse(manifest.fetchedAt) >= Date.parse(draft.publishedAt!) &&
       (after.published ? manifest.entries[draft.slug] === draft.revision : !Object.hasOwn(manifest.entries,draft.slug));
-    if (match) return {changeId:id,kind:"itinerary",state:"live",url:after.published?`https://www.coze.care/itineraries/${draft.slug}/`:undefined,published:after.published,deleted:draft.operation==="delete"};
+    if (match) return {changeId:id,kind:"itinerary",state:"live",url:after.published?`https://www.coze.care/itineraries/${draft.slug}/`:undefined,published:after.published};
     const build=await this.buildState(this.env,draft.publishedAt!);
     const delayed=Date.now()-Date.parse(draft.publishedAt!)>600_000;
     return {changeId:id,kind:"itinerary",state:build==="failed"?"failed":delayed?"needs_attention":"publishing",build,savedAt:draft.publishedAt,
@@ -251,7 +241,7 @@ export class ItineraryBackend {
     await this.db.authorize(owner,true); const draft = await this.owned(owner,id);
     if (draft.state !== "ready" || draft.expires < Date.now() || draft.token !== token) fail("Load the current itinerary preview first.",428);
     draft.viewed = true; await this.store.put(`itinerary:${id}`,draft);
-    return {changeId:id,previewShown:true,next:draft.operation==="delete"?"Ask: Delete this itinerary from the CMS and www.coze.care? Wait for the requester's yes.":"Ask: Publish this itinerary change to www.coze.care? Wait for the requester's yes."};
+    return {changeId:id,previewShown:true,next:"Ask the requester to confirm this exact itinerary change, then wait for their yes."};
   }
   async publish(owner: string, id: string, confirmed: boolean) {
     if (confirmed !== true) fail("Wait for the requester to confirm publishing this exact preview.",428);
@@ -274,7 +264,7 @@ export class ItineraryBackend {
     draft.state = "publishing"; delete draft.error; await this.store.put(`itinerary:${id}`,draft);
     try {
       await this.publishPhotos(draft);
-      const saved = operation === "create" ? await this.db.create(owner,id,after,draft.rationale) : operation === "delete" ? await this.db.delete(owner,id,before!,draft.rationale) : await this.db.publish(owner,id,before!,after,draft.rationale);
+      const saved = operation === "create" ? await this.db.create(owner,id,after,draft.rationale) : await this.db.publish(owner,id,before!,after,draft.rationale);
       Object.assign(draft,saved,{state:"published"}); await this.store.put(`itinerary:${id}`,draft);
     } catch(error) {
       draft.error=error instanceof PublicError?error.message:"The save could not be confirmed. Check this change's status before retrying.";
@@ -309,6 +299,6 @@ export class ItineraryBackend {
       return new Response(bytes,{headers:{"content-type":photo.mime,"cache-control":"private, no-store","x-content-type-options":"nosniff"}});
     }
     const staged = new Map(draft.photos.map(p=>[`/itineraries/${p.key}`,`${this.env.PUBLIC_ORIGIN}/itinerary-preview/${id}/${p.id}?token=${token}`]));
-    return renderItinerary(await this.content(draft),draft.revision,staged,draft.operation==="delete");
+    return renderItinerary(await this.content(draft),draft.revision,staged);
   }
 }

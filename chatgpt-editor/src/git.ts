@@ -1,5 +1,7 @@
 import { fail, type Env } from "./types.ts";
 import { HOME_TEXT_FILES, HOME_IMAGE_DIR, isEditablePath } from "./vendor/homepage-guard.ts";
+import { isSitePagePath, sitePageFiles, SITE_PAGE_CONFIG, type SitePage } from "./site-page-guard.ts";
+import { isUiTextPath, isUiWritePath } from "./ui-guard.ts";
 
 export const REPO = "cozmo-coze-ai/coze_client";
 export const SITE = "https://www.coze.care";
@@ -19,18 +21,47 @@ export class Git {
   async head() { return (await this.request("/git/ref/heads/main")).object.sha as string; }
   async read(path: string, commit: string): Promise<string> {
     if (!isEditablePath(path) || !/^[a-f0-9]{40}$/.test(commit)) fail("Only homepage files at an exact commit can be read.");
+    return this.readFile(path, commit);
+  }
+  private async readFile(path: string, commit: string): Promise<string> {
     const file = await this.request(`/contents/${path}?ref=${commit}`);
     if (file.type !== "file") fail("Not a homepage file.");
     const blob = file.encoding === "base64" && file.content ? file : await this.request(`/git/blobs/${file.sha}`);
     return Buffer.from(blob.content.replace(/\s/g, ""), "base64").toString("utf8");
   }
   async files(commit: string) { return new Map(await Promise.all(HOME_TEXT_FILES.map(async p => [p, await this.read(p, commit)] as const))); }
+  async readSitePage(page: SitePage, path: string, commit: string) {
+    if (!sitePageFiles(page).includes(path) || !/^[a-f0-9]{40}$/.test(commit)) fail("Only the selected page's text files at an exact commit can be read.");
+    return this.readFile(path, commit);
+  }
+  async sitePageFiles(page: SitePage, commit: string) {
+    return new Map(await Promise.all(sitePageFiles(page).map(async path => [path, await this.readSitePage(page, path, commit)] as const)));
+  }
   async images(commit: string): Promise<string[]> {
     const entries = await this.request(`/contents/${HOME_IMAGE_DIR}?ref=${commit}`);
     return entries.filter((e: any) => e.type === "file" && isEditablePath(e.path)).map((e: any) => e.path.slice(6));
   }
-  async createCommit(parent: string, writes: Write[], message: string) {
-    if (writes.length === 0 || writes.some(w => !isEditablePath(w.path))) fail("Only homepage files may change.");
+  async sitePageImages(page: SitePage, commit: string): Promise<string[]> {
+    const directory = SITE_PAGE_CONFIG[page].imageDir;
+    const entries = await this.request(`/contents/${directory}?ref=${commit}`, "GET", undefined, true);
+    return Array.isArray(entries) ? entries.filter((entry: any) => entry.type === "file" && isSitePagePath(page, entry.path)).map((entry: any) => entry.path.slice(7)) : [];
+  }
+  async uiFiles(commit: string): Promise<string[]> {
+    if (!/^[a-f0-9]{40}$/.test(commit)) fail("Read UI files at an exact commit.");
+    const tree = await this.request(`/git/trees/${commit}?recursive=1`);
+    if (tree.truncated) fail("The site file list is incomplete. Ask the owner to check the GitHub connection.", 502);
+    return (tree.tree ?? []).filter((entry: any) => entry.type === "blob" && isUiTextPath(entry.path)).map((entry: any) => entry.path).sort();
+  }
+  async readUiFile(path: string, commit: string) {
+    if (!isUiTextPath(path) || !/^[a-f0-9]{40}$/.test(commit)) fail("Only existing public UI files at an exact commit can be read.");
+    return this.readFile(path, commit);
+  }
+  async uiImages(commit: string): Promise<string[]> {
+    const entries = await this.request(`/contents/public/editor-ui?ref=${commit}`, "GET", undefined, true);
+    return Array.isArray(entries) ? entries.filter((entry: any) => entry.type === "file" && isUiWritePath(entry.path)).map((entry: any) => entry.path.slice(7)) : [];
+  }
+  async createCommit(parent: string, writes: Write[], message: string, page?: SitePage | "ui") {
+    if (writes.length === 0 || writes.some(w => !(page === "ui" ? isUiWritePath(w.path) : page ? isSitePagePath(page, w.path) : isEditablePath(w.path)))) fail("Only files allowed for this page may change.");
     const tree = await Promise.all(writes.map(async w => w.content !== undefined
       ? { path: w.path, mode: "100644", type: "blob", content: w.content }
       : { path: w.path, mode: "100644", type: "blob", sha: (await this.request("/git/blobs", "POST", { content: w.base64, encoding: "base64" })).sha }));
@@ -60,7 +91,9 @@ export class Git {
 }
 
 export async function liveCommit(url = SITE) {
-  const r = await fetch(`${url}/?coze-build-check=${Date.now()}`, { signal: AbortSignal.timeout(15_000), redirect: "manual" });
+  const checkUrl = new URL(url);
+  checkUrl.searchParams.set("coze-build-check", String(Date.now()));
+  const r = await fetch(checkUrl, { signal: AbortSignal.timeout(15_000), redirect: "manual" });
   if (!r.ok) return null;
   const html = await r.text();
   return /<meta\s+name="coze-build"\s+content="([a-f0-9]{40})"/.exec(html)?.[1] ?? null;

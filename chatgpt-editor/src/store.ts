@@ -4,6 +4,8 @@ import { PublicError, member, members, sha256, type Env, type Store } from "./ty
 import { cmsUser } from "./types.ts";
 import { withItineraryDatabase } from "./itinerary-db.ts";
 import { ItineraryBackend } from "./itinerary-backend.ts";
+import { SitePageBackend } from "./site-page-backend.ts";
+import { UiBackend } from "./ui-backend.ts";
 
 export class EditorStore extends DurableObject<Env> {
   private serial = Promise.resolve();
@@ -33,7 +35,37 @@ export class EditorStore extends DurableObject<Env> {
         return Response.json({ id: user.id, name: user.name });
       }
       if (!member(this.env, actor)) return Response.json({ error: "Your team access has been removed." }, { status: 403 });
-      if(method === "profile") return Response.json({id:actor,name:member(this.env,actor)!.name,homepage:true,itineraries:Boolean(cmsUser(this.env,actor)),scopesAvailable:["homepage:read","homepage:write",...(cmsUser(this.env,actor)?["itineraries:read","itineraries:write"]:[])]});
+      if(method === "profile") return Response.json({id:actor,name:member(this.env,actor)!.name,homepage:true,sitePages:["explore","about"],publicUi:true,itineraries:Boolean(cmsUser(this.env,actor)),scopesAvailable:["homepage:read","homepage:write","pages:read","pages:write",...(cmsUser(this.env,actor)?["itineraries:read","itineraries:write"]:[])]});
+      if (method.startsWith("ui:")) {
+        const backend = new UiBackend(this.env, store);
+        let value;
+        switch (method) {
+          case "ui:files": value = await backend.files(input.prefix); break;
+          case "ui:file": value = await backend.file(input.path); break;
+          case "ui:prepare": value = await backend.prepare(actor, input); break;
+          case "ui:status": value = await backend.status(actor, input.changeId); break;
+          case "ui:viewed": value = await backend.viewed(actor, input.changeId, input.viewToken); break;
+          case "ui:publish": value = await backend.publish(actor, input.changeId, input.confirmedByUser); break;
+          case "ui:list": value = await backend.list(actor); break;
+          default: throw new PublicError("Unknown UI operation.", 404);
+        }
+        return Response.json(value);
+      }
+      if (method.startsWith("page:")) {
+        const backend = new SitePageBackend(this.env, store);
+        let value;
+        switch (method) {
+          case "page:read": value = await backend.read(input.page); break;
+          case "page:file": value = await backend.file(input.page, input.path); break;
+          case "page:prepare": value = await backend.prepare(actor, input); break;
+          case "page:status": value = await backend.status(actor, input.page, input.changeId); break;
+          case "page:viewed": value = await backend.viewed(actor, input.page, input.changeId, input.viewToken); break;
+          case "page:publish": value = await backend.publish(actor, input.page, input.changeId, input.confirmedByUser); break;
+          case "page:list": value = await backend.list(actor, input.page); break;
+          default: throw new PublicError("Unknown page operation.", 404);
+        }
+        return Response.json(value);
+      }
       if(method.startsWith("itinerary:")) {
         const value=await withItineraryDatabase(this.env,async db=>{
           const itinerary=new ItineraryBackend(this.env,store,db);
@@ -75,11 +107,11 @@ export class EditorStore extends DurableObject<Env> {
           .reduce((message, secret) => message.split(secret!).join("[redacted]"), error.message).slice(0, 300),
         frames: error.stack?.split("\n").slice(1, 5),
       } : undefined;
-      if (!(error instanceof PublicError)) console.error("Homepage backend failure", {
+      if (!(error instanceof PublicError)) console.error("COZE editor backend failure", {
         name: error instanceof Error ? error.name : typeof error,
         frames: error instanceof Error ? error.stack?.split("\n").slice(1, 5) : [],
       });
-      return Response.json({ error: error instanceof PublicError ? error.message : "The homepage request failed. Try again or ask the owner to check the connection.",
+      return Response.json({ error: error instanceof PublicError ? error.message : "The editor request failed. Try again or ask the owner to check the connection.",
         diagnostic,
       }, { status: error instanceof PublicError ? error.status : 500 });
     }

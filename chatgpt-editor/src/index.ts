@@ -24,20 +24,22 @@ export default {
     const provider = new OAuthProvider<Env>({
       apiRoute: "/mcp", authorizeEndpoint: "/authorize", tokenEndpoint: "/oauth/token", clientRegistrationEndpoint: "/oauth/register",
       accessTokenTTL: 900, refreshTokenTTL: 2_592_000, clientIdMetadataDocumentEnabled: true,
-      scopesSupported: ["homepage:read", "homepage:write", "itineraries:read", "itineraries:write", "offline_access"], requiredScopes: ["homepage:read"],
+      scopesSupported: ["homepage:read", "homepage:write", "pages:read", "pages:write", "itineraries:read", "itineraries:write", "offline_access"], requiredScopes: ["homepage:read"],
       resourceMetadata: { resource: `${env.PUBLIC_ORIGIN}/mcp`, authorization_servers: [env.PUBLIC_ORIGIN] },
       apiHandler: { async fetch(req, bindings, authCtx) {
         const authenticated = authCtx as OAuthResourceContext<{ userId: string }>;
         if (new URL(req.url).pathname !== "/mcp") return new Response("Not found", { status: 404 });
         const actor = (authCtx.props as { userId?: string })?.userId;
         if (!actor || !member(bindings, actor)) return new Response("Team access removed.", { status: 403 });
-        if (!authenticated.auth.scope.some(s=>["homepage:read","itineraries:read"].includes(s))) return insufficientScope(authenticated.auth, ["homepage:read"]);
+        if (!authenticated.auth.scope.some(s=>["homepage:read","pages:read","itineraries:read"].includes(s))) return insufficientScope(authenticated.auth, ["homepage:read"]);
         try {
           return await mcpResponse(req, (method, input) => {
-            if(!method.startsWith("itinerary:") && !authenticated.auth.scope.includes("homepage:read")) throw new PublicError("Reconnect with homepage read access.",403);
+            if((method.startsWith("page:") || method.startsWith("ui:")) && !authenticated.auth.scope.includes("pages:read")) throw new PublicError("Reconnect with public-site editing access.",403);
+            if(!method.startsWith("page:") && !method.startsWith("ui:") && !method.startsWith("itinerary:") && !authenticated.auth.scope.includes("homepage:read")) throw new PublicError("Reconnect with homepage read access.",403);
             return callStore(bindings, actor, method, input);
           }, authenticated.auth.scope.includes("homepage:write") && authenticated.auth.scope.includes("homepage:read"), widget,
-            [`https://*.${bindings.PREVIEW_HOST_SUFFIX}`], {enabled:true,scopes:authenticated.auth.scope,resourceMetadata:`${bindings.PUBLIC_ORIGIN}/.well-known/oauth-protected-resource/mcp`,previewOrigin:bindings.PUBLIC_ORIGIN});
+            [`https://*.${bindings.PREVIEW_HOST_SUFFIX}`], {enabled:true,scopes:authenticated.auth.scope,resourceMetadata:`${bindings.PUBLIC_ORIGIN}/.well-known/oauth-protected-resource/mcp`,previewOrigin:bindings.PUBLIC_ORIGIN},
+            {enabled:true,scopes:authenticated.auth.scope,resourceMetadata:`${bindings.PUBLIC_ORIGIN}/.well-known/oauth-protected-resource/mcp`});
         } catch (e) { return Response.json({ error: e instanceof PublicError ? e.message : "Connection temporarily unavailable." }, { status: e instanceof PublicError ? e.status : 503 }); }
       } },
       defaultHandler: { async fetch(req, bindings) {

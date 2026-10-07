@@ -1,17 +1,23 @@
 // Isolated, static design previews. No production Worker bindings or API code.
-const HOME = new Set(['/', '/ko/', '/ja/', '/zh/']);
 const STATIC = /\.(?:css|js|mjs|png|jpe?g|webp|avif|svg|gif|ico|woff2?|ttf|webmanifest)$/i;
+const PUBLIC_ROUTE = /^\/(?:[a-z0-9-]+\/)*$/;
+const MANUAL_ROUTES = new Set(['ananda', 'b9', 'bs', 'f9', 'fb', 'gk', 'gka', 'gkb', 'ht', 'hta', 'htb', 'jt', 'jts', 'l9', 'prana', 'sa', 'sg', 'sj', 'yt']);
+const isManual = path => {
+  const parts = path.split('/').filter(Boolean);
+  const route = ['ko', 'ja', 'zh'].includes(parts[0]) ? parts[1] : parts[0];
+  return route === 'manual' || MANUAL_ROUTES.has(route);
+};
 export function allowedPreviewPath(path) {
-  return HOME.has(path) || (!path.startsWith('/api/') && !path.includes('..') && STATIC.test(path));
+  return !isManual(path) && ((PUBLIC_ROUTE.test(path) && !path.startsWith('/api/')) || (!path.startsWith('/api/') && !path.includes('..') && STATIC.test(path)));
 }
 export default {
   async fetch(request, env) {
     if (!['GET', 'HEAD'].includes(request.method)) return new Response('Preview only', { status: 405 });
     const url = new URL(request.url);
     if (url.pathname === '/robots.txt') return new Response('User-agent: *\nDisallow: /\n', { headers: { 'Content-Type': 'text/plain' } });
-    if (!allowedPreviewPath(url.pathname)) return new Response('Only the homepage is available in this preview.', { status: 404 });
+    if (!allowedPreviewPath(url.pathname)) return new Response('Only static public pages and assets are available in this preview.', { status: 404 });
     let response = await env.ASSETS.fetch(request);
-    if (HOME.has(url.pathname) && response.ok && request.method === 'GET') {
+    if (PUBLIC_ROUTE.test(url.pathname) && response.ok && request.method === 'GET') {
       // The widget checks origin, iframe source and exact commit before acknowledging.
       const script = `<script>addEventListener('load',()=>parent.postMessage({type:'coze-preview-loaded',commit:document.querySelector('meta[name="coze-build"]')?.content},'*'))</script>`;
       response = new HTMLRewriter().on('body', { element(element) { element.append(script, { html: true }); } }).transform(response);

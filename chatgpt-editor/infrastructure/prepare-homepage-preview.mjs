@@ -9,17 +9,37 @@ const source = path.join(root, 'dist/client');
 if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error('Expected a full Git commit.');
 const output = path.join(root, 'dist', `homepage-preview-${commit}`);
 const assets = path.join(output, 'assets');
-const homeHtml = new Set(['index.html', 'ko/index.html', 'ja/index.html', 'zh/index.html']);
-for (const relative of homeHtml) {
+const manualRoutes = new Set(['ananda', 'b9', 'bs', 'f9', 'fb', 'gk', 'gka', 'gkb', 'ht', 'hta', 'htb', 'jt', 'jts', 'l9', 'prana', 'sa', 'sg', 'sj', 'yt']);
+const isManualHtml = name => {
+  const parts = name.split('/');
+  const route = ['ko', 'ja', 'zh'].includes(parts[0]) ? parts[1] : parts[0];
+  return route === 'manual' || manualRoutes.has(route);
+};
+const previewHtml = new Set(['index.html', 'ko/index.html', 'ja/index.html', 'zh/index.html',
+  ...['life', 'about'].flatMap(page => [page, `ko/${page}`, `ja/${page}`, `zh/${page}`].map(route => `${route}/index.html`))]);
+for (const relative of previewHtml) {
   const html = await readFile(path.join(source, relative), 'utf8');
-  if (!html.includes(`name="coze-build" content="${commit}"`)) throw new Error(`Homepage ${relative} was not built from this commit.`);
+  if (!html.includes(`name="coze-build" content="${commit}"`)) throw new Error(`Page ${relative} was not built from this commit.`);
 }
+// Other public routes are included only when their generated HTML carries the
+// exact build marker. Server-only routes without a static output stay unavailable.
+async function discover(directory, relative = '') {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const name = relative ? `${relative}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) { await discover(path.join(directory, entry.name), name); continue; }
+    if (entry.isFile() && name.endsWith('/index.html') && !previewHtml.has(name) && !isManualHtml(name)) {
+      const html = await readFile(path.join(directory, entry.name), 'utf8');
+      if (html.includes(`name="coze-build" content="${commit}"`)) previewHtml.add(name);
+    }
+  }
+}
+await discover(source);
 async function copy(directory, relative = '') {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const name = relative ? `${relative}/${entry.name}` : entry.name;
     if (entry.isDirectory()) { await copy(path.join(directory, entry.name), name); continue; }
     if (!entry.isFile()) continue;
-    if (!homeHtml.has(name) && !/\.(?:css|js|mjs|png|jpe?g|webp|avif|svg|gif|ico|woff2?|ttf|webmanifest)$/i.test(name)) continue;
+    if (!previewHtml.has(name) && !/\.(?:css|js|mjs|png|jpe?g|webp|avif|svg|gif|ico|woff2?|ttf|webmanifest)$/i.test(name)) continue;
     await mkdir(path.dirname(path.join(assets, name)), { recursive: true });
     await copyFile(path.join(directory, entry.name), path.join(assets, name));
   }
@@ -32,7 +52,7 @@ await writeFile(path.join(output, 'wrangler.json'), JSON.stringify(config, null,
 // A stable deploy config pointer: relative paths must stay relative to this file.
 await writeFile(path.join(root, 'dist/homepage-preview.wrangler.json'), JSON.stringify({ ...config,
   main: `./homepage-preview-${commit}/worker.mjs`, assets: { ...config.assets, directory: `./homepage-preview-${commit}/assets` } }, null, 2));
-console.log(`Homepage-only preview prepared for ${commit}. No APIs or production bindings included.`);
+console.log(`${previewHtml.size} public-page previews prepared for ${commit}. No APIs or production bindings included.`);
 return output;
 }
 

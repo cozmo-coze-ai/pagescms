@@ -40,5 +40,41 @@ try {
     await page.screenshot({ path: `test-results/preview-${width}.png` });
     await page.close();
   }
-  console.log('PASS: real MCP Apps handshake, verified preview acknowledgement, language/size controls and no outer overflow at 320/390/768/1024/1440px. This is a local host simulation, not a ChatGPT installation test.');
+  const pageResult = { ...result, structuredContent: { ...result.structuredContent, kind: 'site-page', page: 'explore', pagePath: '/life' } };
+  const pageHost = host.replace(JSON.stringify(result), JSON.stringify(pageResult));
+  const routes = [];
+  const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    if (url.hostname === 'abcd-coze-homepage-preview.example.workers.dev') routes.push(url.pathname);
+    const body = url.hostname === 'host.example.test' ? pageHost : url.hostname === 'widget.example.test' ? widget : `<!doctype html><meta name="coze-build" content="${commit}"><h1>Explore preview</h1><script>addEventListener('load',()=>parent.postMessage({type:'coze-preview-loaded',commit:'${commit}'},'*'))</script>`;
+    return route.fulfill({ status: 200, contentType: 'text/html', body });
+  });
+  await page.goto('https://host.example.test/');
+  const component = page.frameLocator('iframe');
+  await component.getByRole('status').filter({ hasText: 'Preview ready' }).waitFor();
+  assert.ok(routes.includes('/life/'));
+  assert.deepEqual(await page.evaluate(() => ({ name: window.calls[0].name, arguments: window.calls[0].arguments })), { name: 'markSitePagePreviewViewed', arguments: { changeId, viewToken: result._meta.viewToken, page: 'explore' } });
+  await component.getByLabel('Preview language').selectOption('ko');
+  await page.waitForFunction(() => window.calls.length === 2);
+  assert.ok(routes.includes('/ko/life/'));
+  await page.close();
+  const uiResult = { ...result, structuredContent: { ...result.structuredContent, kind: 'ui', previewPath: '/itineraries/experiences/' } };
+  const uiHost = host.replace(JSON.stringify(result), JSON.stringify(uiResult));
+  const uiRoutes = [];
+  const uiPage = await browser.newPage({ viewport: { width: 390, height: 900 } });
+  await uiPage.route('**/*', route => {
+    const url = new URL(route.request().url());
+    if (url.hostname === 'abcd-coze-homepage-preview.example.workers.dev') uiRoutes.push(url.pathname);
+    const body = url.hostname === 'host.example.test' ? uiHost : url.hostname === 'widget.example.test' ? widget : `<!doctype html><meta name="coze-build" content="${commit}"><h1>Experiences preview</h1><script>addEventListener('load',()=>parent.postMessage({type:'coze-preview-loaded',commit:'${commit}'},'*'))</script>`;
+    return route.fulfill({ status: 200, contentType: 'text/html', body });
+  });
+  await uiPage.goto('https://host.example.test/');
+  const uiComponent = uiPage.frameLocator('iframe');
+  await uiComponent.getByRole('status').filter({ hasText: 'Preview ready' }).waitFor();
+  assert.ok(uiRoutes.includes('/itineraries/experiences/'));
+  assert.equal(await uiComponent.getByLabel('Preview language').isHidden(), true);
+  assert.deepEqual(await uiPage.evaluate(() => ({ name: window.calls[0].name, arguments: window.calls[0].arguments })), { name: 'markUiPreviewViewed', arguments: { changeId, viewToken: result._meta.viewToken } });
+  await uiPage.close();
+  console.log('PASS: real MCP Apps handshake, verified homepage, Explore and public UI preview acknowledgements, page routes, language/size controls and no outer overflow at 320/390/768/1024/1440px. This is a local host simulation, not a ChatGPT installation test.');
 } finally { await browser.close(); }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Git, previewBuild } from "../src/git.ts";
+import { Git, liveCommit, previewBuild } from "../src/git.ts";
 import type { Env } from "../src/types.ts";
 test("only the dedicated preview branch may be force-updated", async () => {
   const git = new Git({} as Env); const calls: any[] = [];
@@ -28,5 +28,19 @@ test("hosted build records without preview_url resolve exact URLs from paginated
     assert.ok(calls.some(url => url.endsWith('/logs?cursor=next')));
     renderedCommit = 'b'.repeat(40);
     assert.deepEqual(await previewBuild(env, commit), { state: 'building' });
+  } finally { globalThis.fetch = original; }
+});
+
+test("public verification checks the selected page path without adding a second slash", async () => {
+  const original = globalThis.fetch;
+  const commit = "c".repeat(40);
+  let requested = "";
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    requested = String(input);
+    return new Response(`<meta name="coze-build" content="${commit}">`);
+  }) as typeof fetch;
+  try {
+    assert.equal(await liveCommit("https://www.coze.care/about/"), commit);
+    assert.match(requested, /^https:\/\/www\.coze\.care\/about\/\?coze-build-check=\d+$/);
   } finally { globalThis.fetch = original; }
 });

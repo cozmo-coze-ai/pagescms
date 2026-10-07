@@ -17,7 +17,7 @@ type Draft = {
   summary: unknown; previewUrl?: string; publishedAt?: number; viewed?: boolean; viewToken?: string;
 };
 
-async function downloadImage(filename: string, link: string) {
+export async function downloadImage(filename: string, link: string, directory = HOME_IMAGE_DIR) {
   const invalid = imageNameError(filename);
   if (invalid) fail(invalid);
   const url = new URL(link);
@@ -32,7 +32,7 @@ async function downloadImage(filename: string, link: string) {
   if (!info || info.width > 4000 || info.height > 4000) fail("Use a JPG, PNG or WebP photo no larger than 4000px.");
   const ext = filename.split(".").pop();
   if (!(info.type === "jpeg" ? ["jpg", "jpeg"] : [info.type]).includes(ext!)) fail("Photo extension does not match its contents.");
-  return { path: `${HOME_IMAGE_DIR}/${filename}`, base64: bytes.toString("base64") };
+  return { path: `${directory}/${filename}`, base64: bytes.toString("base64") };
 }
 
 export class Backend {

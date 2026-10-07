@@ -25,7 +25,6 @@ async function setup(published=true) {
     async published(owner,id){await this.authorize(owner);return saved.get(id)??null;},
     async create(owner,id,after){await this.authorize(owner,true);const previous=saved.get(id);if(previous)return previous;await this.ensureAvailable(owner,after.slug);writes++;created={content:after,revision:await contentRevision(after),updatedAt:new Date().toISOString()};const value={publishedAt:new Date().toISOString(),affectsSite:after.published};saved.set(id,value);if(lostResponse)throw new Error("Connection lost after commit");return value;},
     async publish(owner,id,before,after){await this.authorize(owner,true);if(current.revision!==before.revision)throw new PublicError("Stale",409);writes++;current={...current,content:after,revision:await contentRevision(after)};const value={publishedAt:new Date().toISOString(),affectsSite:before.content.published||after.published};saved.set(id,value);if(lostResponse)throw new Error("Connection lost after commit");return value;},
-    async delete(owner,id,before){await this.authorize(owner,true);const previous=saved.get(id);if(previous)return previous;if(deleted||current.revision!==before.revision||current.updatedAt!==before.updatedAt)throw new PublicError("Stale",409);writes++;deleted=true;const value={publishedAt:new Date().toISOString(),affectsSite:before.content.published};saved.set(id,value);if(lostResponse)throw new Error("Connection lost after commit");return value;},
   };
   let manifest:any=null;
   const kv=new Map<string,ArrayBuffer>();
@@ -82,25 +81,33 @@ test("a new itinerary is previewed before an atomic CMS creation and defaults to
   await s.backend.publish("alice",draft.changeId,true);assert.equal(s.writes(),1);
   await assert.rejects(s.backend.prepareNew("alice",{slug:"incheon-open-port",title:"Duplicate",category:"tour",tag:null,tagColor:null,cover:null,body:"Duplicate",rationale:"Try duplicate"}),/already exists/);
 });
-test("permanent deletion requires an exact preview and confirms public removal",async()=>{
+test("delete request hides a published itinerary while keeping its CMS record",async()=>{
   const s=await setup();
   await assert.rejects(s.backend.prepareDelete("alice",{slug:content.slug,expectedRevision:"0".repeat(64),rationale:"Remove this tour"}),/changed/);
   const draft=await s.backend.prepareDelete("alice",{slug:content.slug,expectedRevision:s.current().revision,rationale:"Remove this tour"});
-  assert.equal(s.deleted(),false);assert.equal((draft as any).summary.operation,"delete");
+  assert.equal(s.deleted(),false);assert.equal((draft as any).summary.operation,"update");
+  assert.equal((draft as any).summary.publishedAfter,false);
   const shown:any=await s.backend.status("alice",draft.changeId,true);
   const html=await (await s.backend.preview(draft.changeId,shown._viewToken)).text();
-  assert.match(html,/Deletion will remove this itinerary/);
+  assert.match(html,/unpublished draft/);
   await assert.rejects(s.backend.publish("alice",draft.changeId,true),/preview/);
   await s.backend.viewed("alice",draft.changeId,shown._viewToken);
-  assert.equal((await s.backend.publish("alice",draft.changeId,true)).state,"publishing");assert.equal(s.deleted(),true);
+  assert.equal((await s.backend.publish("alice",draft.changeId,true)).state,"publishing");assert.equal(s.deleted(),false);
+  assert.equal(s.current().content.published,false);
   await s.backend.publish("alice",draft.changeId,true);assert.equal(s.writes(),1);
   s.setManifest({version:1,fetchedAt:new Date(Date.now()+1000).toISOString(),entries:{}});
-  const status:any=await s.backend.status("alice",draft.changeId);assert.equal(status.state,"live");assert.equal(status.deleted,true);assert.equal(status.url,undefined);
+  const status:any=await s.backend.status("alice",draft.changeId);assert.equal(status.state,"live");assert.equal(status.published,false);assert.equal(status.url,undefined);
 });
-test("deleting an unpublished itinerary removes only the CMS row",async()=>{
-  const s=await setup(false);const draft=await s.backend.prepareDelete("alice",{slug:content.slug,expectedRevision:s.current().revision,rationale:"Remove unused draft"});
-  const shown:any=await s.backend.status("alice",draft.changeId,true);await s.backend.viewed("alice",draft.changeId,shown._viewToken);
-  assert.equal((await s.backend.publish("alice",draft.changeId,true)).state,"deleted");assert.equal(s.deleted(),true);
+test("delete request leaves an already hidden itinerary untouched",async()=>{
+  const s=await setup(false);
+  await assert.rejects(s.backend.prepareDelete("alice",{slug:content.slug,expectedRevision:s.current().revision,rationale:"Remove unused draft"}),/no change/i);
+  assert.equal(s.deleted(),false);assert.equal(s.writes(),0);
+});
+test("old permanent-deletion drafts cannot be published",async()=>{
+  const s=await setup();const id=crypto.randomUUID();
+  await s.store.put(`itinerary:${id}`,{id,owner:"alice",slug:content.slug,operation:"delete",state:"ready",expires:Date.now()+60_000});
+  await assert.rejects(s.backend.publish("alice",id,true),/no longer valid/);
+  assert.equal(s.deleted(),false);assert.equal(s.writes(),0);
 });
 test("unsafe HTML, image URLs, encoded script links and address changes are refused",async()=>{
   for(const body of ['<script>alert(1)</script>','<img src=x onerror=alert(1)>','<a href="jav&#97;script:alert(1)">go</a>','<a href="java\nscript:alert(1)">go</a>','<svg onload=alert(1)>','[x](javascript:alert(1))','![x](https://evil.example/x.png)'])assert.throws(()=>validateContent({...content,body}),(error:unknown)=>error instanceof Error,body);

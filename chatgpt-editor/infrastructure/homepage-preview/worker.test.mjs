@@ -5,11 +5,11 @@ import { prepareHomepagePreview } from '../prepare-homepage-preview.mjs';
 import { mkdtemp, mkdir, writeFile, readFile, access, copyFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-test('preview permits home locales and static design assets only', () => {
-  for (const path of ['/', '/ko/', '/ja/', '/zh/', '/_astro/app.js', '/home/photo.webp']) assert.ok(allowedPreviewPath(path));
-  for (const path of ['/stay', '/bookings/', '/api/booking.js', '/api/payment', '/guests/data.json', '/manual.pdf', '/secret.map']) assert.ok(!allowedPreviewPath(path));
+test('preview permits static public page routes and design assets only', () => {
+  for (const path of ['/', '/ko/', '/ja/', '/zh/', '/life/', '/ko/life/', '/about/', '/itineraries/experiences/', '/itineraries/sample-tour/', '/stay/gk/', '/_astro/app.js', '/home/photo.webp']) assert.ok(allowedPreviewPath(path));
+  for (const path of ['/stay', '/api/booking.js', '/api/payment/', '/gk/', '/ko/jt/', '/manual/', '/guests/data.json', '/manual.pdf', '/secret.map']) assert.ok(!allowedPreviewPath(path));
 });
-test('preview blocks all mutations and non-homepage HTML before reaching assets', async () => {
+test('preview blocks all mutations and other HTML before reaching assets', async () => {
   const env = { ASSETS: { fetch: () => { throw new Error('must not reach assets'); } } };
   assert.equal((await worker.fetch(new Request('https://preview.test/', { method: 'POST' }), env)).status, 405);
   assert.equal((await worker.fetch(new Request('https://preview.test/stay'), env)).status, 404);
@@ -25,7 +25,8 @@ test('preview package requires exact commit and excludes APIs, other HTML and se
   const root = await mkdtemp(path.join(os.tmpdir(), 'coze-preview-test-'));
   const commit = 'a'.repeat(40);
   try {
-    const files = ['index.html', 'ko/index.html', 'ja/index.html', 'zh/index.html', 'stay/index.html', 'guest/private.json', '.env', '_astro/page.js', 'home/hero.webp'];
+    const pageHtml = ['life', 'about'].flatMap(page => [page, `ko/${page}`, `ja/${page}`, `zh/${page}`].map(route => `${route}/index.html`));
+    const files = ['index.html', 'ko/index.html', 'ja/index.html', 'zh/index.html', ...pageHtml, 'itineraries/experiences/index.html', 'stay/index.html', 'gk/index.html', 'ko/jt/index.html', 'guest/private.html', 'guest/private.json', '.env', '_astro/page.js', 'home/hero.webp'];
     for (const file of files) {
       const target = path.join(root, 'dist/client', file); await mkdir(path.dirname(target), { recursive: true });
       await writeFile(target, `<meta name="coze-build" content="${commit}">`);
@@ -34,8 +35,8 @@ test('preview package requires exact commit and excludes APIs, other HTML and se
     await copyFile(new URL('./worker.mjs', import.meta.url), path.join(root, 'scripts/homepage-preview/worker.mjs'));
     await assert.rejects(prepareHomepagePreview(root, 'b'.repeat(40)), /not built from this commit/);
     const output = await prepareHomepagePreview(root, commit);
-    for (const file of ['index.html', 'ko/index.html', 'ja/index.html', 'zh/index.html', '_astro/page.js', 'home/hero.webp']) await access(path.join(output, 'assets', file));
-    for (const file of ['stay/index.html', 'guest/private.json', '.env']) await assert.rejects(access(path.join(output, 'assets', file)));
+    for (const file of ['index.html', 'ko/index.html', 'ja/index.html', 'zh/index.html', ...pageHtml, 'itineraries/experiences/index.html', 'stay/index.html', '_astro/page.js', 'home/hero.webp']) await access(path.join(output, 'assets', file));
+    for (const file of ['gk/index.html', 'ko/jt/index.html', 'guest/private.html', 'guest/private.json', '.env']) await assert.rejects(access(path.join(output, 'assets', file)));
     const config = JSON.parse(await readFile(path.join(root, 'dist/homepage-preview.wrangler.json'), 'utf8'));
     assert.equal(config.name, 'coze-homepage-preview');
     assert.equal(config.assets.run_worker_first, true);
