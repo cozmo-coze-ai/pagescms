@@ -18,7 +18,7 @@
     "shortDescription": "Edit COZE website UI"
   },
   "name": "gpt-96a7a163626e05f4185de181791ba82a",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Edit approved COZE public UI and CMS itineraries with preview-first publishing; operational pages and backend logic stay locked.",
   "author": {
     "name": "Nishat"
