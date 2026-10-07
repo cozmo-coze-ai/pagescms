@@ -1,7 +1,10 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-const worker = await readFile('infrastructure/homepage-preview/worker.mjs', 'utf8');
-const packager = await readFile('infrastructure/prepare-homepage-preview.mjs', 'utf8');
+// Git checkouts may use CRLF on Windows while Cloudflare builds use LF.
+// The immutable asset and trigger hash must be identical in both places.
+const normalizeLines = value => value.replace(/\r\n/g, '\n');
+const worker = normalizeLines(await readFile('infrastructure/homepage-preview/worker.mjs', 'utf8'));
+const packager = normalizeLines(await readFile('infrastructure/prepare-homepage-preview.mjs', 'utf8'));
 const copyWorker = "await cp(path.join(root, 'scripts/homepage-preview/worker.mjs'), path.join(output, 'worker.mjs'));";
 if (packager.split(copyWorker).length !== 2) throw new Error('Preview package entry changed; review bootstrap generation.');
 const script = packager.replace(copyWorker, () => `await writeFile(path.join(output, 'worker.mjs'), ${JSON.stringify(worker)});`);
