@@ -1,6 +1,6 @@
 {
   "name": "gpt-96a7a163626e05f4185de181791ba82a",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Edit approved COZE public UI and CMS itineraries with preview-first publishing; operational pages and backend logic stay locked.",
   "author": {
     "name": "Nishat"
@@ -14,7 +14,7 @@
           "skills"
         ],
         "category": "Other",
-        "composerIcon": "./assets/gpt-icon.png",
+        "composerIcon": "./assets/coze-icon.png",
         "defaultPrompt": [
           "Make the homepage hero more compact on mobile.",
           "Change this homepage copy in all four languages.",
@@ -22,7 +22,7 @@
         ],
         "developerName": "Nishat",
         "displayName": "COZE Website Editor",
-        "logo": "./assets/gpt-icon.png",
+        "logo": "./assets/coze-icon.png",
         "longDescription": "Redesign the COZE homepage, About, Life/Explore, Experiences, itinerary pages and shared header/footer. Create, edit or hide CMS itineraries while keeping their records. Preview in chat and confirm before publishing. Stay, bookings, community, manuals and backend logic stay locked.",
         "shortDescription": "Edit COZE website UI"
       }
