@@ -29,9 +29,11 @@ after import; it keeps the existing plugin identity rather than creating a
 second COZE plugin. The admin must import from the same Business workspace
 that owns this plugin.
 
-Import, then review the results. Open the imported **COZE Homepage & Itinerary
-Editor**, make it available to the intended team roles, and enable its required
-COZE app for those roles. Each teammate authenticates their own COZE identity
+Import, then review the results. Open the imported **COZE Website Editor**, make
+it available to the intended team roles, and enable its COZE app for those
+roles. The `policy` values in the repository catalog do **not** configure
+ChatGPT workspace installation or authentication policies; the admin must set
+those in the workspace. Each teammate authenticates their own COZE identity
 with the corresponding CMS access. Plugin installation does not provision it.
 
 The current app reference is `asdk_app_6abb1da4205c81919a0468aee3675954`, endpoint
@@ -59,8 +61,10 @@ of the tools visible to this workspace.
   3.0 > **Sync now** requests an earlier sync. Check the sync report before
   announcing an update. Test in a new conversation.
 - **New tools or scopes:** tool discovery and user consent have a separate
-  lifecycle. The current development app may need Refresh tools and reconnection;
-  marketplace sync does not promise to refresh an app's cached tools or consent.
+  lifecycle. Refresh the connected app when its tool metadata changes, reconnect
+  if new consent is required, and test in a new conversation. Marketplace sync
+  does not refresh cached app tools or grant consent. Verify the tools from a
+  representative team member's account before announcing availability to all.
 
 Run `npm run check:plugin` from `chatgpt-editor/`. This is also part of the existing
 Cloudflare editor build's `npm run check`. It validates catalog paths, matching
@@ -70,9 +74,10 @@ before merging. For runtime changes also run the normal editor checks and tests.
 
 Personal ZIP copies in other workspaces remain separate. OpenAI requires a
 `pluginId` migration target to belong to the same workspace. The existing COZE
-plugin ID in this catalog was verified as a private WORKSPACE plugin, version
-0.4.1, before adding it. Keep this marketplace entry and plugin ID for future
-releases; the GitHub source is already at version 0.4.2.
+plugin ID in this catalog is a private WORKSPACE plugin. Keep this marketplace
+entry and plugin ID for future releases; do not create a second plugin. Matching
+versions in GitHub and ChatGPT do **not** prove that GitHub management is active:
+a package can also be released directly to the existing plugin.
 
 To revert an instruction release, restore the prior content with a new version,
 merge and sync. Do not delete/reimport the marketplace to force an update;
@@ -80,24 +85,23 @@ deleting it deletes its imported plugins.
 
 ## Activation evidence
 
-Repository setup and validation are separate from workspace activation. The
-current plugin record is a private WORKSPACE plugin. No authenticated workspace
-marketplace import tool is available to this coding session. The owner must complete the import
-above. Record its result, company plugin ID, sync status and successful homepage
-and itinerary reads here before claiming company auto-updates are active.
+Repository setup and validation are separate from workspace activation. On
+2026-10-07, the private WORKSPACE plugin read back as version 0.5.2, release
+`pluginrel_6ac6055c92288191b3ccbf3813ad2c75`, with app ID
+`asdk_app_6abb1da4205c81919a0468aee3675954`. GitHub `main` commit
+`988811973c20f81a99f2850749f49696e5e76605` carries the same 0.5.2 package;
+the root catalog points to that same plugin ID. The repository's
+`npm run check:plugin` validation passes. This coding session has no
+authenticated workspace marketplace import/sync control; it cannot verify
+whether the admin imported the catalog or whether daily sync is active.
 
-Preparation checks passed: native catalog discovery finds the existing plugin
-and its instruction skill; package validation, editor TypeScript, all 27 tests and
-Wrangler dry-run build passed. Native local discovery did not resolve connected
-apps, so the source `.app.json` check is not proof of company app availability.
-Verify the required app in the actual workspace import results.
-
-Release `1577758fa469d099514692ae0d360c3e2ef1568c` was pushed to `main`.
-Cloudflare CMS build `32453656-a722-4f7d-9c87-862d67df098f` succeeded in 103 seconds;
-editor build `9ed50447-9ace-47df-b62d-9c4be7259d3b` succeeded in 36 seconds after
-the CMS build. Post-deploy checks returned HTTP 200 for CMS, the public homepage
-and editor health, with both configured flags true. Plugin instructions, app ID
-and runtime source were unchanged. Workspace import and daily sync remain
-unverified until the owner completes the company import and reads both systems.
+To close activation, the admin should check **Admin > Plugins > Marketplaces**:
+confirm a marketplace for `cozmo-coze-ai/pagescms` on `main`, the existing COZE
+plugin ID in its import/sync report, and successful sync without errors. If it
+is absent, perform the one-time import above. If already present, use **Sync
+now** and inspect its saved report; do not delete/reimport it. Then confirm
+role installation policy and app availability, and test homepage and itinerary
+reads from a normal member account. Record the result here before claiming
+central automatic updates are active.
 
 Official source: [OpenAI: import and sync workspace plugins from GitHub](https://learn.chatgpt.com/docs/enterprise/plugin-management).
